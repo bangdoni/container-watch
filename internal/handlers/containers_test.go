@@ -26,10 +26,10 @@ import (
 // manager, a real engine manager pointed at a fake engine, and a logged-in
 // admin.
 type env struct {
-	srv    *handlers.Server
-	routes http.Handler
-	store  *database.Store
-	fake   *enginetest.Server
+	srv     *handlers.Server
+	routes  http.Handler
+	store   *database.Store
+	fake    *enginetest.Server
 	nodes   *engine.Manager
 	hub     *sse.Hub
 	metrics *sse.MetricsBroker
@@ -119,8 +119,8 @@ func newEnv(t *testing.T) *env {
 	csrf := am.EnsureCSRF(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
 
 	return &env{
-		srv:    srv,
-		routes: srv.Routes(),
+		srv:     srv,
+		routes:  srv.Routes(),
 		store:   store,
 		fake:    fake,
 		nodes:   nodes,
@@ -170,15 +170,15 @@ func (e *env) postForm(t *testing.T, path string, fields map[string]string) *htt
 // TestNodeCreateStartsMetricStream is the regression test for the two bugs
 // that made a node added through the UI produce no metrics at all.
 //
-// 1. afterNodeChange called StartNodeStreams only when Status.Online was
-//    already true, but a node that has just been created has never been
-//    probed, so its status was still zeroed and the streams were skipped.
-//    Nothing recovered this: the health loop re-probes but only ever updates
-//    status, it never starts the streams.
+//  1. afterNodeChange called StartNodeStreams only when Status.Online was
+//     already true, but a node that has just been created has never been
+//     probed, so its status was still zeroed and the streams were skipped.
+//     Nothing recovered this: the health loop re-probes but only ever updates
+//     status, it never starts the streams.
 //
-// 2. StartNodeStreams passed the caller's context to the brokers. afterNodeChange
-//    uses "ctx, cancel := context.WithTimeout(...); defer cancel()", so the
-//    samplers were torn down the instant the HTTP request returned.
+//  2. StartNodeStreams passed the caller's context to the brokers. afterNodeChange
+//     uses "ctx, cancel := context.WithTimeout(...); defer cancel()", so the
+//     samplers were torn down the instant the HTTP request returned.
 //
 // The node still listed containers, because that path queries the engine on
 // demand — which is why neither bug looked like a wiring problem.

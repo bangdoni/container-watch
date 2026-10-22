@@ -68,7 +68,7 @@ type Server struct {
 	images     []Image
 	logs       map[string][]string // container id -> log lines
 	stats      map[string]Stats    // container id -> latest stats
-	actions    []Action             // lifecycle actions received
+	actions    []Action            // lifecycle actions received
 
 	// eventSubs holds the live /events subscribers, so a lifecycle action can
 	// push an event to them the way a real daemon does.
@@ -123,10 +123,10 @@ type Stats struct {
 
 // Image is an image as the fake engine reports it.
 type Image struct {
-	ID       string `json:"Id"`
+	ID       string   `json:"Id"`
 	RepoTags []string `json:"RepoTags"`
-	Size     int64  `json:"Size"`
-	Created  int64  `json:"Created"`
+	Size     int64    `json:"Size"`
+	Created  int64    `json:"Created"`
 }
 
 // New starts a fake engine and returns it. The caller must Close it.
@@ -270,9 +270,9 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.writeJSON(w, map[string]any{
-			"Id":      c.ID,
-			"Name":    strings.TrimPrefix(c.Names[0], "/"),
-			"State":   map[string]any{"Status": c.State, "StartedAt": time.Unix(c.Created, 0).Format(time.RFC3339)},
+			"Id":     c.ID,
+			"Name":   strings.TrimPrefix(c.Names[0], "/"),
+			"State":  map[string]any{"Status": c.State, "StartedAt": time.Unix(c.Created, 0).Format(time.RFC3339)},
 			"Config": map[string]any{"Image": c.Image, "Cmd": []string{"sh"}, "Labels": c.Labels},
 			"HostConfig": map[string]any{
 				"NetworkMode": c.EffectiveNetworkMode(),
@@ -288,7 +288,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		}
 		s.writeJSON(w, map[string]any{
 			"cpu_stats": map[string]any{
-				"cpu_usage": map[string]any{"total_usage": 1_000_000_000},
+				"cpu_usage":        map[string]any{"total_usage": 1_000_000_000},
 				"system_cpu_usage": 10_000_000_000,
 			},
 			"memory_stats": map[string]any{
