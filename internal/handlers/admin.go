@@ -222,8 +222,23 @@ func (s *Server) afterNodeChange(r *http.Request, id int64, verb, name string) {
 		s.log.Error("refresh nodes", "error", err)
 	}
 	s.metrics.StopNode(id)
-	if n, ok := s.nodes.Get(id); ok && n.Client != nil && n.Status.Online {
-		s.StartNodeStreams(ctx, n)
+	// Probe before deciding. A node that was just added has never been
+	// probed, so its status is still zeroed and Online false; testing
+	// Status.Online first would skip the streams entirely. The health loop
+	// does not recover this — it re-probes periodically but only ever updates
+	// status, it never starts the streams — so without this the node has no
+	// metrics or events until the process restarts.
+	//
+	// Note that ctx is cancelled by the defer above as soon as this returns,
+	// which is why StartNodeStreams deliberately ignores it.
+	if n, ok := s.nodes.Get(id); ok && n.Client != nil {
+		_ = s.nodes.ProbeByID(ctx, id)
+		if n, ok := s.nodes.Get(id); ok && n.Status.Online {
+			s.StartNodeStreams(ctx, n)
+		} else {
+			s.log.Warn("node "+verb+" but its engine is unreachable; streams not started",
+				"node", name)
+		}
 	}
 	s.log.Info("node "+verb, "node", name, "by", currentUsername(r))
 }

@@ -2,9 +2,11 @@ package handlers_test
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,8 +30,11 @@ type env struct {
 	routes http.Handler
 	store  *database.Store
 	fake   *enginetest.Server
-	nodes  *engine.Manager
-	cookie *http.Cookie
+	nodes   *engine.Manager
+	hub     *sse.Hub
+	metrics *sse.MetricsBroker
+	cookie  *http.Cookie
+	csrf    string
 }
 
 // newEnv builds the test environment. The node endpoint is the fake engine.
@@ -109,13 +114,20 @@ func newEnv(t *testing.T) *env {
 		t.Fatal("no session cookie")
 	}
 
+	// Take the CSRF token the server hands to a rendered page, so postForm
+	// submits exactly what the browser would.
+	csrf := am.EnsureCSRF(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
+
 	return &env{
 		srv:    srv,
 		routes: srv.Routes(),
-		store:  store,
-		fake:   fake,
-		nodes:  nodes,
-		cookie: cookie,
+		store:   store,
+		fake:    fake,
+		nodes:   nodes,
+		hub:     hub,
+		metrics: metrics,
+		cookie:  cookie,
+		csrf:    csrf,
 	}
 }
 
@@ -127,6 +139,169 @@ func (e *env) get(t *testing.T, path string) *httptest.ResponseRecorder {
 	rec := httptest.NewRecorder()
 	e.routes.ServeHTTP(rec, req)
 	return rec
+}
+
+// postForm performs an authenticated POST with form values and the session's
+// CSRF token, mirroring what the browser sends.
+func (e *env) postForm(t *testing.T, path string, fields map[string]string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPost, path, nil)
+	req.AddCookie(e.cookie)
+	// Double-submit CSRF: the token is compared between the cookie and the
+	// form field, so both must carry it.
+	req.AddCookie(&http.Cookie{Name: auth.CSRFCookieName, Value: e.csrf})
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	form := url.Values{}
+	for k, v := range fields {
+		form.Set(k, v)
+	}
+	// Reuse the token the server already issued to this session.
+	form.Set("_csrf", e.csrf)
+
+	req.Body = io.NopCloser(strings.NewReader(form.Encode()))
+	req.ContentLength = int64(len(form.Encode()))
+
+	rec := httptest.NewRecorder()
+	e.routes.ServeHTTP(rec, req)
+	return rec
+}
+
+// TestNodeCreateStartsMetricStream is the regression test for the two bugs
+// that made a node added through the UI produce no metrics at all.
+//
+// 1. afterNodeChange called StartNodeStreams only when Status.Online was
+//    already true, but a node that has just been created has never been
+//    probed, so its status was still zeroed and the streams were skipped.
+//    Nothing recovered this: the health loop re-probes but only ever updates
+//    status, it never starts the streams.
+//
+// 2. StartNodeStreams passed the caller's context to the brokers. afterNodeChange
+//    uses "ctx, cancel := context.WithTimeout(...); defer cancel()", so the
+//    samplers were torn down the instant the HTTP request returned.
+//
+// The node still listed containers, because that path queries the engine on
+// demand — which is why neither bug looked like a wiring problem.
+func TestNodeCreateStartsMetricStream(t *testing.T) {
+	e := newEnv(t)
+	e.fake.AddContainer(enginetest.SampleContainer(
+		"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+		"web-frontend", "nginx:1.27"))
+
+	// A second engine, because the node endpoint is unique and the bootstrap
+	// node already owns the first fake's URL.
+	other := enginetest.New()
+	t.Cleanup(other.Close)
+	other.AddContainer(enginetest.SampleContainer(
+		"2222222222222222222222222222222222222222222222222222222222222222",
+		"api-server", "redis:7"))
+
+	// Add a second node at runtime, the way the admin UI does.
+	rec := e.postForm(t, "/admin/nodes", map[string]string{
+		"name":     "added-at-runtime",
+		"endpoint": other.URL(),
+		"engine":   "docker",
+	})
+	if rec.Code != http.StatusNoContent && rec.Code != http.StatusOK {
+		t.Fatalf("node create returned %d, want 204", rec.Code)
+	}
+
+	// Find the new node's id.
+	nodes, err := e.store.ListNodes(context.Background())
+	if err != nil {
+		t.Fatalf("ListNodes: %v", err)
+	}
+	if len(nodes) != 2 {
+		t.Fatalf("expected 2 nodes in the store, got %d", len(nodes))
+	}
+	var addedID int64
+	for _, n := range nodes {
+		if n.Name == "added-at-runtime" {
+			addedID = n.ID
+		}
+	}
+	if addedID == 0 {
+		t.Fatal("the new node was not found in the store")
+	}
+
+	// The broker must begin sampling it on its own. Poll rather than sleep a
+	// fixed amount so the test is not timing-fragile.
+	// Watch the node's real SSE topic. The broker's container cache is written
+	// once and never expires, so it would still look populated after the
+	// sampler died; only a published event proves the goroutine is alive.
+	events, unsubscribe := e.hub.Subscribe(sse.TopicMetrics(addedID))
+	defer unsubscribe()
+
+	if !e.waitForEvent(events, 6*time.Second) {
+		t.Fatal("no metrics event was published for the runtime-added node; " +
+			"the sampler either never started or died with the request context")
+	}
+}
+
+// waitForEvent blocks until a metrics event arrives on ch, or within elapses.
+func (e *env) waitForEvent(ch <-chan sse.Event, within time.Duration) bool {
+	timer := time.NewTimer(within)
+	defer timer.Stop()
+	for {
+		select {
+		case <-ch:
+			return true
+		case <-timer.C:
+			return false
+		}
+	}
+}
+
+// TestPagesRenderingTheTablePartialDoNotError guards the field layout of the
+// shared "containers-table" partial.
+//
+// The partial reads .NodeOnline and .NodeError. It is rendered from three
+// different payloads — dashboardView, containersView and tablePartialView —
+// and Go templates resolve a missing field as a hard render error, so any
+// payload that omits one turns the whole page into a 500 rather than a
+// partial render. That is not hypothetical: adding .NodeError to the partial
+// while only teaching containersView about it 500'd the dashboard, and it
+// only showed up against a running server because no test rendered the
+// dashboard with the offline branch taken.
+//
+// Every page that embeds the partial must return 200 in both the online and
+// the offline case.
+func TestPagesRenderingTheTablePartialDoNotError(t *testing.T) {
+	pages := []string{"/", "/containers?node=0"}
+
+	for _, online := range []bool{true, false} {
+		name := "offline"
+		if online {
+			name = "online"
+		}
+		t.Run(name, func(t *testing.T) {
+			e := newEnv(t)
+			if online {
+				e.fake.AddContainer(enginetest.SampleContainer(
+					"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+					"web-frontend", "nginx:1.27"))
+			} else {
+				e.fake.SetOffline(true)
+			}
+			for _, n := range e.nodes.List() {
+				_ = e.nodes.ProbeByID(context.Background(), n.Record.ID)
+			}
+
+			for _, page := range pages {
+				rec := e.get(t, page)
+				if rec.Code != http.StatusOK {
+					t.Errorf("%s returned %d, want 200", page, rec.Code)
+					continue
+				}
+				body := rec.Body.String()
+				// A template render error leaks into the body as a 500 page;
+				// a clean render never contains the engine's error text.
+				if strings.Contains(body, "can't evaluate field") {
+					t.Errorf("%s failed to render the table partial:\n%s", page, body)
+				}
+			}
+		})
+	}
 }
 
 // TestContainersTableShowsEngineUnreachable is the regression test for the

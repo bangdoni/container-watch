@@ -39,6 +39,13 @@ type Server struct {
 	limiter *rateLimiter
 	// setupMu serialises first-run admin creation.
 	setupMu sync.Mutex
+
+	// bgCtx is the server-wide context every background stream runs under.
+	// It is created lazily and cancelled by Shutdown, so a stream started for
+	// a node added at runtime outlives the request that triggered it.
+	bgCtx    context.Context
+	bgCancel context.CancelFunc
+	bgOnce   sync.Once
 }
 
 // New builds a Server.
@@ -79,6 +86,16 @@ type viewData struct {
 	Nodes      []*engine.Node
 	NodeID     int64
 	NodeOnline bool
+	// NodeError carries the engine connection error for the selected node,
+	// empty when it is online. The shared "containers-table" partial renders
+	// it in the unreachable state so the operator sees *why* the engine could
+	// not be reached instead of an empty table that reads as "no containers".
+	//
+	// This lives on viewData rather than on each page payload because the
+	// partial is rendered from several views (dashboard, containers, and the
+	// htmx swap), and a field missing from one of them turns every page that
+	// embeds the partial into a 500.
+	NodeError string
 	// Flash carries a one-shot message rendered at the top of the content.
 	Flash string
 	// FlashKind is "error", "success", "warn" or "info".
@@ -158,6 +175,7 @@ func (s *Server) page(w http.ResponseWriter, r *http.Request, active, title stri
 	}
 	vd.NodeID = n.Record.ID
 	vd.NodeOnline = n.Status.Online
+	vd.NodeError = firstNonEmpty(n.Status.Error)
 	vd.Data = map[string]any{"node": n}
 	return vd, n, true
 }
@@ -183,6 +201,7 @@ func (s *Server) withNode(r *http.Request, vd viewData) (viewData, *engine.Node,
 	if ok {
 		vd.NodeID = n.Record.ID
 		vd.NodeOnline = n.Status.Online
+		vd.NodeError = firstNonEmpty(n.Status.Error)
 	}
 	return vd, n, ok
 }

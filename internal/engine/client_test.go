@@ -378,3 +378,80 @@ func TestContainerNameFallback(t *testing.T) {
 		t.Errorf("Name() = %q, want a prefix of the id", got)
 	}
 }
+
+// TestStreamEventsDeliversLifecycleEvents checks the event stream against the
+// fake engine.
+//
+// Without this, the fake returned 404 for /events, every EventBroker client
+// failed to connect and retried with backoff, and the container-change SSE
+// stream was permanently silent -- which looked identical to the broker never
+// having been started. That ambiguity is what let a real lifetime bug hide
+// behind a gap in the fake.
+func TestStreamEventsDeliversLifecycleEvents(t *testing.T) {
+	fake := enginetest.New()
+	defer fake.Close()
+
+	const id = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+	fake.AddContainer(enginetest.SampleContainer(id, "web-frontend", "nginx:1.27"))
+
+	c := newClient(t, fake)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	events, err := c.StreamEvents(ctx)
+	if err != nil {
+		t.Fatalf("StreamEvents: %v", err)
+	}
+
+	// Give the stream a moment to connect before triggering the action.
+	time.Sleep(100 * time.Millisecond)
+	if err := c.Do(ctx, id, engine.ActionRestart); err != nil {
+		t.Fatalf("Do(restart): %v", err)
+	}
+
+	select {
+	case ev, ok := <-events:
+		if !ok {
+			t.Fatal("the event channel closed without delivering anything")
+		}
+		if ev.Type != "container" {
+			t.Errorf("event Type = %q, want container", ev.Type)
+		}
+		if ev.Action != "restart" {
+			t.Errorf("event Action = %q, want restart", ev.Action)
+		}
+		if got := ev.ContainerName(); got != "web-frontend" {
+			t.Errorf("ContainerName() = %q, want web-frontend", got)
+		}
+	case <-ctx.Done():
+		t.Fatal("no event was delivered for a container restart")
+	}
+}
+
+// TestEventStreamClosesWithTheFake makes sure Close releases an open
+// /events subscriber. httptest.Server.Close blocks until every in-flight
+// request returns, so a fake that leaks its stream hangs the whole test
+// binary instead of failing.
+func TestEventStreamClosesWithTheFake(t *testing.T) {
+	fake := enginetest.New()
+	c := newClient(t, fake)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if _, err := c.StreamEvents(ctx); err != nil {
+		t.Fatalf("StreamEvents: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	done := make(chan struct{})
+	go func() {
+		fake.Close()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Close blocked on an open event stream")
+	}
+}

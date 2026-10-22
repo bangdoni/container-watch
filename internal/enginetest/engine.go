@@ -70,6 +70,15 @@ type Server struct {
 	stats      map[string]Stats    // container id -> latest stats
 	actions    []Action             // lifecycle actions received
 
+	// eventSubs holds the live /events subscribers, so a lifecycle action can
+	// push an event to them the way a real daemon does.
+	eventSubs map[chan ContainerEvent]struct{}
+	// eventDone is closed by Close to release every /events handler.
+	// httptest.Server.Close blocks until all in-flight requests return, so
+	// without this a test that merely connected to /events would hang the
+	// whole package instead of failing.
+	eventDone chan struct{}
+
 	// offline makes every endpoint fail with 503, mimicking a daemon
 	// that is present but wedged.
 	offline bool
@@ -77,6 +86,22 @@ type Server struct {
 	failList bool
 
 	http *httptest.Server
+}
+
+// ContainerEvent is one entry of the /events stream. The field names are
+// capitalised because that is what engine.Event decodes.
+type ContainerEvent struct {
+	Type     string `json:"Type"`
+	Action   string `json:"Action"`
+	Status   string `json:"Status"`
+	ID       string `json:"ID"`
+	From     string `json:"from"`
+	Time     int64  `json:"time"`
+	TimeNano int64  `json:"timeNano"`
+	Actor    struct {
+		ID         string            `json:"ID"`
+		Attributes map[string]string `json:"Attributes"`
+	} `json:"Actor"`
 }
 
 // Action records a lifecycle call (start/stop/restart/kill).
@@ -107,8 +132,10 @@ type Image struct {
 // New starts a fake engine and returns it. The caller must Close it.
 func New() *Server {
 	s := &Server{
-		logs:  map[string][]string{},
-		stats: map[string]Stats{},
+		logs:      map[string][]string{},
+		stats:     map[string]Stats{},
+		eventSubs: map[chan ContainerEvent]struct{}{},
+		eventDone: make(chan struct{}),
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", s.handle)
@@ -120,8 +147,18 @@ func New() *Server {
 // engine.Options.Endpoint.
 func (s *Server) URL() string { return s.http.URL }
 
-// Close shuts the fake engine down.
-func (s *Server) Close() { s.http.Close() }
+// Close shuts the fake engine down. Any open /events stream is released first
+// so the HTTP server's shutdown does not block on it.
+func (s *Server) Close() {
+	s.mu.Lock()
+	select {
+	case <-s.eventDone: // already closed
+	default:
+		close(s.eventDone)
+	}
+	s.mu.Unlock()
+	s.http.Close()
+}
 
 // SetContainers replaces the container list.
 func (s *Server) SetContainers(c ...Container) {
@@ -284,6 +321,8 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 			payload := line + "\n"
 			fmt.Fprintf(w, "%s%s", logHeader(payload), payload)
 		}
+	case p == "/events":
+		s.streamEvents(w, r)
 	case strings.HasPrefix(p, "/containers/") && (strings.HasSuffix(p, "/start") ||
 		strings.HasSuffix(p, "/stop") || strings.HasSuffix(p, "/restart") || strings.HasSuffix(p, "/kill")):
 		parts := strings.Split(strings.TrimPrefix(p, "/containers/"), "/")
@@ -291,12 +330,88 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 			s.mu.Lock()
 			s.actions = append(s.actions, Action{ID: parts[0], Action: parts[1]})
 			s.mu.Unlock()
+			// A real daemon emits an event for the action; clients rely on
+			// this to refresh, so the fake must too.
+			s.emitLifecycle(parts[0], parts[1])
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
 		http.NotFound(w, r)
 	default:
 		http.NotFound(w, r)
+	}
+}
+
+// streamEvents serves the Engine API event stream: newline-delimited JSON,
+// held open until the client goes away.
+//
+// It deliberately does not honour the ?filters= parameter. The real daemon
+// filters server-side; here every subscriber receives every event, which is
+// enough to prove a client is consuming the stream.
+func (s *Server) streamEvents(w http.ResponseWriter, r *http.Request) {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Api-Version", "1.41")
+	w.WriteHeader(http.StatusOK)
+	flusher.Flush()
+
+	ch := make(chan ContainerEvent, 8)
+	s.mu.Lock()
+	s.eventSubs[ch] = struct{}{}
+	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		delete(s.eventSubs, ch)
+		s.mu.Unlock()
+	}()
+
+	enc := json.NewEncoder(w)
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case <-s.eventDone:
+			return
+		case ev := <-ch:
+			if err := enc.Encode(ev); err != nil {
+				return
+			}
+			flusher.Flush()
+		}
+	}
+}
+
+// emitLifecycle pushes a container event to every /events subscriber.
+func (s *Server) emitLifecycle(id, action string) {
+	ev := ContainerEvent{
+		Type:     "container",
+		Action:   action,
+		Status:   "restarting",
+		ID:       id,
+		Time:     time.Now().Unix(),
+		TimeNano: time.Now().UnixNano(),
+	}
+	ev.Actor.ID = id
+	ev.Actor.Attributes = map[string]string{"name": id, "image": ""}
+	if c, ok := s.containerByID(id); ok {
+		if n := c.Names; len(n) > 0 {
+			ev.Actor.Attributes["name"] = strings.TrimPrefix(n[0], "/")
+		}
+		if len(c.Image) > 0 {
+			ev.Actor.Attributes["image"] = c.Image
+		}
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for ch := range s.eventSubs {
+		select {
+		case ch <- ev:
+		default: // a subscriber that is not keeping up misses the event
+		}
 	}
 }
 

@@ -345,11 +345,6 @@ type containersView struct {
 	Query      string
 	Filter     string
 	NodeUser   any
-	// NodeError carries the last connection error for the selected node.
-	// The shared "containers-table" partial renders it in the unreachable
-	// state so the operator sees why the engine could not be reached
-	// instead of an empty table that looks like "no containers".
-	NodeError string
 }
 
 // containersPage renders the full container list.
@@ -364,7 +359,9 @@ func (s *Server) containersPage(w http.ResponseWriter, r *http.Request) {
 		vd.Flash = "Cannot reach " + n.Record.Name + ": " + err.Error()
 		vd.FlashKind = "error"
 	}
-	nodeErr := firstNonEmpty(errString(err), n.Status.Error)
+	// Prefer the error from this request: n.Status.Error may still hold the
+	// failure from the previous probe cycle, which can name a different cause.
+	vd.NodeError = firstNonEmpty(errString(err), n.Status.Error)
 	rows := s.buildRows(n.Record.ID, containers)
 	sortRows(rows)
 	q := r.URL.Query().Get("q")
@@ -379,7 +376,6 @@ func (s *Server) containersPage(w http.ResponseWriter, r *http.Request) {
 		Query:      q,
 		Filter:     defaultStr(r.URL.Query().Get("state"), "all"),
 		NodeUser:   userOf(r),
-		NodeError:  nodeErr,
 	})
 }
 
@@ -499,6 +495,8 @@ func (s *Server) containersTablePartial(w http.ResponseWriter, r *http.Request) 
 		CSRF:       s.auth.EnsureCSRF(w, r),
 		User:       userOf(r),
 		NodeUser:   userOf(r),
+		// The engine answered, so this render is the reachable-and-empty
+		// (or reachable-and-populated) case, not the unreachable one.
 		NodeOnline: n.Status.Online,
 		NodeError:  n.Status.Error,
 	})

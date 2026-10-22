@@ -156,6 +156,9 @@ func run() error {
 	// in-flight SSE connections drain naturally.
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownGrace)
 	defer cancel()
+	// Stop the background samplers and event watchers before draining HTTP,
+	// so they do not keep querying an engine that is about to go away.
+	srv.Shutdown()
 	if err := httpSrv.Shutdown(shutdownCtx); err != nil {
 		log.Warn("graceful shutdown timed out", "error", err)
 		_ = httpSrv.Close()

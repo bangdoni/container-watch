@@ -192,12 +192,45 @@ func round1(v float64) float64 {
 	return float64(int64(v*10+0.5)) / 10
 }
 
-// startNodeStreams attaches the brokers to a node once it is online. Called by
+// StartNodeStreams attaches the brokers to a node once it is online. Called by
 // the server wiring at boot and after a node is added or edited.
-func (s *Server) StartNodeStreams(ctx context.Context, n *engine.Node) {
+//
+// ctx is deliberately ignored. The brokers start a goroutine that is meant to
+// run for the lifetime of the process, so it must not inherit a caller's
+// context. The caller in afterNodeChange uses
+//
+//	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+//	defer cancel()
+//
+// so handing that ctx to the brokers killed every sampler the moment the HTTP
+// request finished. The node still rendered its container list — that path
+// queries the engine on demand — which is exactly why the failure looked like
+// "the node is wired up but metrics are missing" rather than a lifetime bug.
+//
+// ctx stays in the signature so the boot-time call site in main reads
+// naturally, and so this stays a one-line change if a caller ever needs to pass
+// a real lifetime in explicitly.
+func (s *Server) StartNodeStreams(_ context.Context, n *engine.Node) {
 	if n == nil || n.Client == nil || !n.Status.Online {
 		return
 	}
+	ctx := s.lifetime()
 	s.metrics.StartNode(ctx, n.Record.ID, n.Client)
 	s.events.StartNode(ctx, n.Record.ID, n.Client)
+}
+
+// lifetime returns the server-wide context that background streams run under.
+// It is cancelled by Shutdown.
+func (s *Server) lifetime() context.Context {
+	s.bgOnce.Do(func() {
+		s.bgCtx, s.bgCancel = context.WithCancel(context.Background())
+	})
+	return s.bgCtx
+}
+
+// Shutdown stops the background streams started by StartNodeStreams.
+func (s *Server) Shutdown() {
+	if s.bgCancel != nil {
+		s.bgCancel()
+	}
 }
