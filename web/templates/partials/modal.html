@@ -1,0 +1,18 @@
+{{/* Modal host: content is htmx-loaded into #modal-body. */}}
+{{ define "modal-root" }}
+<div x-data x-show="$store.ui.modal" x-cloak class="modal-backdrop" @click.self="$store.ui.close()" @keydown.escape.window="$store.ui.close()">
+  <div class="modal" :class="$store.ui.modal && ($store.ui.modal.size || '')" role="dialog" aria-modal="true">
+    <div hx-get="" :hx-get="$store.ui.modal && $store.ui.modal.url" hx-trigger="load" hx-target="#modal-body" hx-swap="innerHTML">
+      <div id="modal-body">
+        <div class="modal-header">
+          <div class="modal-title">Loading…</div>
+          <button class="modal-close" type="button" @click="$store.ui.close()" aria-label="Close">{{ icon "x" }}</button>
+        </div>
+        <div class="modal-body">
+          <div class="flex items-center gap-2 text-secondary"><span class="spinner"></span> Fetching from engine…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{{ end }}

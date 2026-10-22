@@ -1,0 +1,137 @@
+{{/* Live container metrics modal. Charts are fed by the shared metrics store. */}}
+{{ define "container-metrics" }}
+<div class="modal-header">
+  <div style="min-width:0">
+    <div class="modal-title">{{ if .Row.Name }}{{ .Row.Name }}{{ else }}Container{{ end }} · metrics</div>
+    <div class="modal-sub">Rolling window · node {{ .NodeID }}</div>
+  </div>
+  <button class="modal-close" type="button" @click="$store.ui.close()" aria-label="Close">{{ icon "x" }}</button>
+</div>
+
+{{ if .Error }}
+<div class="modal-body">
+  <div class="alert alert-error">{{ icon "alert" }}<span>{{ .Error }}</span></div>
+</div>
+<div class="modal-footer">
+  <button type="button" class="btn" @click="$store.ui.close()">Close</button>
+</div>
+{{ else }}
+
+<div class="modal-body" data-node="{{ .NodeID }}" data-cid="{{ .InspectID }}" data-cname="{{ .Row.Name }}" x-data="cwContainer($el)">
+  <div class="stat-grid mb-3">
+    <div class="stat">
+      <div class="stat-head">{{ icon "cpu" }} CPU</div>
+      <div class="stat-value" x-text="cpu.toFixed(1) + '%'">{{ pct .Row.CPU }}%</div>
+      <div class="bar">
+        <div class="bar-fill" :style="'width:' + Math.min(100, cpu) + '%'"
+             style="width: {{ pctWidth .Row.CPU }}; background: {{ cpuColor .Row.CPU }}"></div>
+      </div>
+      <div class="stat-meta"><span class="truncate">{{ truncate 40 .Row.Image }}</span></div>
+    </div>
+
+    <div class="stat">
+      <div class="stat-head">{{ icon "memory" }} Memory</div>
+      <div class="stat-value" x-text="CW.fmtBytes(mem)">{{ formatBytes .Row.Mem }}</div>
+      <div class="bar">
+        <div class="bar-fill" :style="'width:' + Math.min(100, memPct) + '%'"
+             style="width: {{ pctWidth .Row.MemPct }}; background: {{ memColor .Row.MemPct }}"></div>
+      </div>
+      <div class="stat-meta">
+        <span x-text="memLimit ? CW.fmtPct(memPct) + ' of ' + CW.fmtBytes(memLimit) : 'no limit'">
+          {{ if .Row.MemLimit }}{{ pct .Row.MemPct }}% of {{ formatBytes .Row.MemLimit }}{{ else }}no limit{{ end }}
+        </span>
+      </div>
+    </div>
+
+    <div class="stat">
+      <div class="stat-head">{{ icon "network" }} Network</div>
+      <div class="stat-value text-lg" x-text="'↓ ' + CW.fmtRate(metrics ? metrics.rx_rate : 0)">↓ 0 B/s</div>
+      <div class="stat-meta">
+        <span x-text="'↑ ' + CW.fmtRate(metrics ? metrics.tx_rate : 0)">↑ 0 B/s</span>
+      </div>
+    </div>
+
+    <div class="stat">
+      <div class="stat-head">{{ icon "disk" }} Disk</div>
+      <div class="stat-value text-lg" x-text="'R ' + CW.fmtRate(metrics ? metrics.read_rate : 0)">R 0 B/s</div>
+      <div class="stat-meta">
+        <span x-text="'W ' + CW.fmtRate(metrics ? metrics.write_rate : 0)">W 0 B/s</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart">
+      <div class="chart-head">
+        <span class="chart-title">CPU</span>
+        <span class="chart-value" data-chart-value="{{ .InspectID }}" data-kind="cpu">{{ pct .Row.CPU }}%</span>
+      </div>
+      <svg class="chart-svg" data-chart="cpu" data-chart-key="{{ .NodeID }}/{{ .InspectID }}"
+           viewBox="0 0 320 82" preserveAspectRatio="none"></svg>
+    </div>
+
+    <div class="chart">
+      <div class="chart-head">
+        <span class="chart-title">Memory</span>
+        <span class="chart-value" data-chart-value="{{ .InspectID }}" data-kind="mem">{{ formatBytes .Row.Mem }}</span>
+      </div>
+      <svg class="chart-svg" data-chart="mem" data-chart-key="{{ .NodeID }}/{{ .InspectID }}"
+           viewBox="0 0 320 82" preserveAspectRatio="none"></svg>
+    </div>
+
+    <div class="chart">
+      <div class="chart-head">
+        <span class="chart-title">Network</span>
+        <span class="chart-value" data-chart-value="{{ .InspectID }}" data-kind="io">–</span>
+      </div>
+      <svg class="chart-svg" data-chart="io" data-chart-key="{{ .NodeID }}/{{ .InspectID }}"
+           viewBox="0 0 320 82" preserveAspectRatio="none"></svg>
+    </div>
+
+    <div class="chart">
+      <div class="chart-head">
+        <span class="chart-title">Block I/O</span>
+        <span class="chart-value" data-chart-value="{{ .InspectID }}" data-kind="blk">–</span>
+      </div>
+      <svg class="chart-svg" data-chart="blk" data-chart-key="{{ .NodeID }}/{{ .InspectID }}"
+           viewBox="0 0 320 82" preserveAspectRatio="none"></svg>
+    </div>
+  </div>
+
+  <div class="section-title">{{ icon "activity" }} Snapshot</div>
+  <div class="kv">
+    <div class="kv-item">
+      <div class="kv-key">Processes</div>
+      <div class="kv-val mono" x-text="metrics ? metrics.pids : '–'">–</div>
+    </div>
+    <div class="kv-item">
+      <div class="kv-key">Network received</div>
+      <div class="kv-val mono" x-text="metrics ? CW.fmtBytes(metrics.net_rx) : '–'">–</div>
+    </div>
+    <div class="kv-item">
+      <div class="kv-key">Network sent</div>
+      <div class="kv-val mono" x-text="metrics ? CW.fmtBytes(metrics.net_tx) : '–'">–</div>
+    </div>
+    <div class="kv-item">
+      <div class="kv-key">Block read</div>
+      <div class="kv-val mono" x-text="metrics ? CW.fmtBytes(metrics.blk_read) : '–'">–</div>
+    </div>
+    <div class="kv-item">
+      <div class="kv-key">Block written</div>
+      <div class="kv-val mono" x-text="metrics ? CW.fmtBytes(metrics.blk_write) : '–'">–</div>
+    </div>
+    <div class="kv-item">
+      <div class="kv-key">Last sample</div>
+      <div class="kv-val mono" x-text="metrics ? new Date(metrics.ts).toLocaleTimeString() : 'waiting…'">waiting…</div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-footer">
+  <a class="btn btn-ghost btn-sm mr-auto" href="/containers/{{ .InspectID }}?node={{ .NodeID }}">Full detail {{ icon "external" }}</a>
+  <button type="button" class="btn" @click="$store.ui.close()">Close</button>
+</div>
+
+<script type="application/json" data-chart-seed>{{ json (dict "key" (printf "%d/%s" .NodeID .InspectID) "series" .Series) }}</script>
+{{ end }}
+{{ end }}

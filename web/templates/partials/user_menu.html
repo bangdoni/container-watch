@@ -1,0 +1,25 @@
+{{/* User menu with role badge and logout. */}}
+{{ define "user-menu" }}
+{{ if .User }}
+<div class="relative" x-data="{ open: false }" @click.outside="open = false">
+  <button type="button" class="btn btn-ghost" @click="open = !open" style="height:30px;padding:0 6px">
+    <span class="cell-avatar" style="width:20px;height:20px">{{ initial .User.Username }}</span>
+    <span class="hide-sm">{{ .User.Username }}</span>
+    {{ if .User.IsAdmin }}<span class="pill pill-purple" style="height:16px;font-size:10px">admin</span>{{ else }}<span class="pill pill-gray" style="height:16px;font-size:10px">user</span>{{ end }}
+    {{ icon "chevron" }}
+  </button>
+  <div x-show="open" x-transition.opacity.duration.120ms x-cloak
+       class="card" style="position:absolute;right:0;top:34px;min-width:210px;z-index:60;box-shadow:var(--shadow)">
+    <div style="padding:10px 12px;border-bottom:1px solid var(--border-weak)">
+      <div class="font-medium">{{ .User.Username }}</div>
+      <div class="text-xs text-disabled">{{ if .User.Email }}{{ .User.Email }}{{ else }}no email set{{ end }}</div>
+    </div>
+    <a class="nav-link" href="/account" style="margin:6px;border-radius:4px">{{ icon "user" }} Account</a>
+    <form method="post" action="/logout" style="margin:6px">
+      <input type="hidden" name="_csrf" value="{{ .CSRF }}">
+      <button type="submit" class="nav-link w-full text-left" style="background:none;border:0;width:100%">{{ icon "logout" }} Sign out</button>
+    </form>
+  </div>
+</div>
+{{ end }}
+{{ end }}

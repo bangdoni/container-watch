@@ -1,0 +1,83 @@
+{{/* Container log viewer modal. Data: nodeID, stream, tail (plus Row for the title). */}}
+{{ define "container-logs" }}
+<div class="modal-header">
+  <div style="min-width:0">
+    <div class="modal-title">{{ if .Row.Name }}{{ .Row.Name }}{{ else }}Container{{ end }}</div>
+    <div class="modal-sub">Container logs · node {{ .NodeID }}</div>
+  </div>
+  <button class="modal-close" type="button" @click="$store.ui.close()" aria-label="Close">{{ icon "x" }}</button>
+</div>
+
+{{ if .Error }}
+<div class="modal-body">
+  <div class="alert alert-error">{{ icon "alert" }}<span>{{ .Error }}</span></div>
+</div>
+<div class="modal-footer">
+  <button type="button" class="btn" @click="$store.ui.close()">Close</button>
+</div>
+{{ else }}
+
+<div data-stream="{{ .Data.stream }}" data-tail="{{ .Data.tail }}" data-cname="{{ .Row.Name }}" x-data="cwLogs($el)">
+
+  <div class="logs-toolbar">
+    <span class="flex items-center gap-1 text-xs" :class="connected ? 'text-green' : 'text-yellow'">
+      <span class="pulse-dot" x-show="connected"></span>
+      <span x-text="connected ? 'streaming' : 'connecting…'">connecting…</span>
+    </span>
+
+    <div class="search" style="min-width:180px">
+      {{ icon "search" }}
+      <input class="input input-sm" type="search" x-model="query" placeholder="Filter lines…" autocomplete="off" spellcheck="false">
+    </div>
+
+    <div class="topbar-spacer"></div>
+
+    <label class="text-xs text-secondary flex items-center gap-1">
+      tail
+      <select class="select input-sm" x-model="tail" @change="connect()">
+        <option value="50">50</option>
+        <option value="200">200</option>
+        <option value="500">500</option>
+        <option value="1000">1000</option>
+        <option value="2000">2000</option>
+      </select>
+    </label>
+
+    <button type="button" class="btn btn-sm" @click="togglePause()">
+      <span x-show="!paused">{{ icon "pause" }} Pause</span>
+      <span x-show="paused" x-cloak>{{ icon "play" }} Resume<span class="text-yellow" x-show="buffer.length"> (<span x-text="buffer.length"></span>)</span></span>
+    </button>
+    <button type="button" class="btn btn-sm btn-ghost" @click="restart()" title="Reconnect from the tail">{{ icon "restart" }}</button>
+    <button type="button" class="btn btn-sm btn-ghost" @click="clear()" title="Clear the buffer">{{ icon "x" }}</button>
+    <button type="button" class="btn btn-sm btn-ghost" @click="exportLogs()" title="Download as .txt">{{ icon "download" }}</button>
+  </div>
+
+  <div class="alert alert-error" x-show="error" x-cloak style="margin:10px 12px">
+    {{ icon "alert" }}<span x-text="error"></span>
+  </div>
+
+  <div class="logs" x-ref="pane" @scroll.debounce.120ms="onScroll()">
+    <div class="logs-empty" x-show="visible().length === 0">
+      <span x-show="query">No lines match “<span x-text="query"></span>”.</span>
+      <span x-show="!query">Waiting for output…</span>
+    </div>
+    <template x-for="l in visible()" :key="l.id">
+      <div class="log-line" :class="{ err: l.err }">
+        <span class="ln" x-text="l.n"></span>
+        <span class="msg" x-html="hl(l.text)"></span>
+      </div>
+    </template>
+  </div>
+
+  <div class="modal-footer">
+    <span class="text-xs text-disabled mr-auto">
+      <span x-text="count"></span> lines buffered<span x-show="paused" x-cloak class="text-yellow"> · paused</span>
+      · newest 2000 kept
+    </span>
+    <button type="button" class="btn btn-ghost btn-sm" @click="scrollDown()" x-show="!follow" x-cloak>Jump to end {{ icon "chevron" }}</button>
+    <button type="button" class="btn" @click="$store.ui.close()">Close</button>
+  </div>
+</div>
+
+{{ end }}
+{{ end }}

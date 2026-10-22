@@ -1,0 +1,65 @@
+{{ define "content" }}
+{{ if .Flash }}
+<div class="alert alert-{{ .alertClass }} mb-3">{{ icon "alert" }}<span>{{ .Flash }}</span></div>
+{{ end }}
+
+<div class="flex items-center gap-2 mb-3 flex-wrap">
+  <div>
+    <h1 class="text-xl font-semibold">Images</h1>
+    <p class="text-xs text-disabled mt-1">
+      {{ len .Images }} image{{ if ne (len .Images) 1 }}s{{ end }} on this node
+      {{ if .Total }} · {{ formatBytesIEC .Total }} on disk{{ end }}
+    </p>
+  </div>
+  <div class="topbar-spacer"></div>
+  <a class="btn btn-ghost btn-sm" href="/images?node={{ .NodeID }}">{{ icon "refresh" }} Refresh</a>
+</div>
+
+<div class="card">
+  {{ if .Images }}
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Repository</th>
+          <th>Tag</th>
+          <th class="mono">Image ID</th>
+          <th class="num">Size</th>
+          <th class="num">Containers</th>
+          <th>Created</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{ range .Images }}
+        {{ $name := .Repository }}
+        {{ $parts := splitTag $name }}
+        {{ $repo := index $parts 0 }}
+        {{ $tag := index $parts 1 }}
+        <tr>
+          <td>
+            <div class="flex items-center gap-2" style="min-width:0">
+              <span class="cell-avatar">{{ icon "layers" }}</span>
+              <span class="cell-name truncate" title="{{ $repo }}">{{ $repo }}</span>
+            </div>
+          </td>
+          <td><span class="pill pill-gray">{{ default "none" $tag }}</span></td>
+          <td class="mono text-xs text-secondary">
+            <button type="button" class="id-tag" data-copy="{{ .ShortID }}">{{ .ShortID }}{{ icon "copy" }}</button>
+          </td>
+          <td class="num text-secondary">{{ formatBytesIEC .Size }}</td>
+          <td class="num {{ if .Containers }}text-green{{ else }}text-disabled{{ end }}">{{ .Containers }}</td>
+          <td class="text-xs text-secondary" title="{{ .Created }}">{{ timeAgo (unixTime .Created) }}</td>
+        </tr>
+        {{ end }}
+      </tbody>
+    </table>
+  </div>
+  {{ else }}
+  <div class="empty">
+    {{ icon "layers" }}
+    <h3>No images</h3>
+    <p>{{ if .Flash }}The engine could not be queried.{{ else }}This node has no images yet — pull one with the engine CLI.{{ end }}</p>
+  </div>
+  {{ end }}
+</div>
+{{ end }}

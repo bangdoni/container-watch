@@ -1,0 +1,40 @@
+{{/* Sidebar navigation. Expects PageData (plus optional Nodes/NodeID). */}}
+{{ define "sidebar" }}
+<aside class="sidebar" :class="{ 'open': $store.ui.sidebarOpen }">
+  <a class="brand" href="/">
+    <span class="brand-mark">{{ icon "box" }}</span>
+    <span>ContainerWatch</span>
+  </a>
+  <nav class="nav">
+    <div class="nav-label">Monitor</div>
+    <a class="nav-link {{ if eq .Active "dashboard" }}active{{ end }}" href="/">
+      {{ icon "dashboard" }} Dashboard
+    </a>
+    <a class="nav-link {{ if eq .Active "containers" }}active{{ end }}" href="/containers">
+      {{ icon "box" }} Containers
+    </a>
+    <a class="nav-link {{ if eq .Active "images" }}active{{ end }}" href="/images">
+      {{ icon "layers" }} Images
+    </a>
+
+    {{ if and .User .User.IsAdmin }}
+    <div class="nav-label">Administration</div>
+    <a class="nav-link {{ if eq .Active "nodes" }}active{{ end }}" href="/admin/nodes">
+      {{ icon "server" }} Nodes
+    </a>
+    <a class="nav-link {{ if eq .Active "users" }}active{{ end }}" href="/admin/users">
+      {{ icon "users" }} Users
+    </a>
+    <a class="nav-link {{ if eq .Active "settings" }}active{{ end }}" href="/admin/settings">
+      {{ icon "settings" }} Settings
+    </a>
+    {{ end }}
+  </nav>
+  <div class="sidebar-footer">
+    <div class="flex items-center justify-between">
+      <span>v{{ .Version }}</span>
+      <span class="flex items-center gap-1"><span class="pulse-dot"></span>live</span>
+    </div>
+  </div>
+</aside>
+{{ end }}

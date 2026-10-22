@@ -1,0 +1,22 @@
+{{/* Node switcher. Preserves the current path, swapping the ?node= param. */}}
+{{ define "node-switcher" }}
+{{ if .Nodes }}
+<div class="flex items-center gap-2" x-data="{ open: false }">
+  <label class="text-xs text-disabled hide-sm uppercase tracking-wide" for="node-select">Node</label>
+  <select id="node-select"
+          class="select input-sm"
+          style="width:auto;min-width:150px"
+          onchange="const u=new URL(window.location.href); u.searchParams.set('node', this.value); window.location.href=u.toString();">
+    {{ range .Nodes }}
+    <option value="{{ .Record.ID }}" {{ if eq $.NodeID .Record.ID }}selected{{ end }}>
+      {{ .Record.Name }}{{ if not .Status.Online }} (offline){{ end }}
+    </option>
+    {{ end }}
+  </select>
+  <span class="flex items-center gap-1 text-xs {{ if .NodeOnline }}text-green{{ else }}text-red{{ end }} hide-sm">
+    <span class="pill-dot"></span>
+    {{ if .NodeOnline }}online{{ else }}offline{{ end }}
+  </span>
+</div>
+{{ end }}
+{{ end }}

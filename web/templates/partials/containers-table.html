@@ -1,0 +1,142 @@
+{{/* Container table fragment.
+     Data: tablePartialView, or any page view carrying .Containers, .NodeID,
+     .Seed, .Query and .Filter. The wrapper listens for SSE "containers" events
+     and re-fetches itself, so lifecycle changes appear without a reload. */}}
+{{ define "containers-table" }}
+<div id="cw-containers-table"
+     hx-ext="sse" sse-connect="/events/containers?node={{ .NodeID }}"
+     hx-trigger="sse:containers from:body, cw:refresh from:body"
+     hx-get="/containers/table?node={{ .NodeID }}&state={{ .Filter }}&q={{ .Query }}"
+     hx-swap="outerHTML">
+  {{ if .Containers }}
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>State</th>
+          <th class="num">CPU</th>
+          <th class="num">Memory</th>
+          <th class="num hide-sm">Net I/O</th>
+          <th>Ports</th>
+          <th class="hide-sm">Uptime</th>
+          <th class="col-actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{ range .Containers }}
+        <tr data-node="{{ $.NodeID }}" data-cid="{{ .C.ID }}" data-cname="{{ .Name }}" x-data="cwContainer($el)">
+          <td>
+            <div class="cell-name">
+              <span class="cell-avatar">{{ icon "box" }}</span>
+              <div style="min-width:0">
+                <a class="row-link" href="/containers/{{ .C.ID }}?node={{ $.NodeID }}">{{ .Name }}</a>
+                <span class="cell-sub">
+                  <button type="button" class="id-tag" data-copy="{{ .C.ID }}" title="Copy container id">
+                    {{ .Short }}{{ icon "copy" }}
+                  </button>
+                  <span class="text-disabled">·</span>
+                  <span title="{{ .Image }}">{{ truncate 38 .Image }}</span>
+                </span>
+              </div>
+            </div>
+          </td>
+          <td>
+            <span class="pill pill-{{ .Accent }}">
+              <span class="pill-dot"></span>{{ .State }}
+            </span>
+            {{ if .Health }}
+            <span class="cell-sub text-{{ if eq .Health "healthy" }}green{{ else if eq .Health "unhealthy" }}red{{ else }}yellow{{ end }}">{{ .Health }}</span>
+            {{ end }}
+            {{ if and .Status (not .Uptime) }}
+            <span class="cell-sub">{{ truncate 32 .Status }}</span>
+            {{ end }}
+          </td>
+          <td class="num">
+            {{ if .HasStats }}
+            <span class="{{ cpuColor .CPU }}" x-text="cpu.toFixed(1) + '%'" data-live="cpu" data-live-id="{{ .C.ID }}">{{ pct .CPU }}%</span>
+            <div class="spark-wrap mt-1">
+              <canvas data-spark="cpu" data-id="{{ .C.ID }}"></canvas>
+            </div>
+            {{ else }}
+            <span class="text-disabled">—</span>
+            {{ end }}
+          </td>
+          <td class="num">
+            {{ if .HasStats }}
+            <span x-text="window.CW.fmtBytes(mem)" data-live="mem" data-live-id="{{ .C.ID }}">{{ formatBytesIEC .Mem }}</span>
+            <span class="cell-sub">{{ pct .MemPct }}% of {{ formatBytesIEC .MemLimit }}</span>
+            <div class="bar mt-1" style="width:84px;margin-left:auto">
+              <div class="bar-fill {{ if ge .MemPct 90.0 }}is-crit{{ else if ge .MemPct 75.0 }}is-warn{{ end }}"
+                   :class="{ 'is-crit': memPct >= 90, 'is-warn': memPct >= 75 && memPct < 90 }"
+                   :style="'width:' + Math.min(100, memPct) + '%'"
+                   style="width: {{ pctWidth .MemPct }}"></div>
+            </div>
+            {{ else }}
+            <span class="text-disabled">—</span>
+            {{ end }}
+          </td>
+          <td class="num hide-sm">
+            <span class="text-xs text-secondary" data-live="net" data-live-id="{{ .C.ID }}">↓ {{ rate .RxRate }}</span>
+            <span class="cell-sub">↑ {{ rate .TxRate }}</span>
+          </td>
+          <td>
+            {{ if .Ports }}
+            <div class="ports">
+              {{ range .Ports }}
+              {{ if .PublicPort }}
+              <span class="port" title="{{ .Type }} {{ .PrivatePort }} → {{ .PublicPort }}">
+                <span class="host">{{ .PublicPort }}</span><span class="arrow">→</span>{{ .PrivatePort }}
+              </span>
+              {{ else }}
+              <span class="port" title="exposed {{ .Type }} {{ .PrivatePort }}" style="opacity:.65">{{ .PrivatePort }}</span>
+              {{ end }}
+              {{ end }}
+            </div>
+            {{ else }}
+            <span class="text-disabled">—</span>
+            {{ end }}
+          </td>
+          <td class="hide-sm">
+            <span class="text-secondary">{{ default "—" .Uptime }}</span>
+          </td>
+          <td class="col-actions">
+            <div class="flex items-center justify-end gap-1">
+              <button type="button" class="btn btn-ghost btn-sm" title="Live logs" @click="openLogs()">{{ icon "logs" }}</button>
+              <button type="button" class="btn btn-ghost btn-sm" title="Metrics" @click="openMetrics()">{{ icon "activity" }}</button>
+              <button type="button" class="btn btn-ghost btn-sm" title="Inspect" @click="openInspect()">{{ icon "info" }}</button>
+              {{ if isAdmin $.NodeUser }}
+              {{ if .Running }}
+              <button type="button" class="btn btn-ghost btn-sm" title="Restart" :disabled="busy" @click="act('restart')">{{ icon "restart" }}</button>
+              {{ if .Paused }}
+              <button type="button" class="btn btn-ghost btn-sm text-green" title="Unpause" :disabled="busy" @click="act('unpause')">{{ icon "play" }}</button>
+              {{ else }}
+              <button type="button" class="btn btn-ghost btn-sm" title="Pause" :disabled="busy" @click="act('pause')">{{ icon "pause" }}</button>
+              {{ end }}
+              <button type="button" class="btn btn-ghost btn-sm text-red" title="Stop" :disabled="busy" @click="act('stop')">{{ icon "stop" }}</button>
+              {{ else if .Paused }}
+              <button type="button" class="btn btn-ghost btn-sm text-green" title="Unpause" :disabled="busy" @click="act('unpause')">{{ icon "play" }}</button>
+              {{ else }}
+              <button type="button" class="btn btn-ghost btn-sm text-green" title="Start" :disabled="busy" @click="act('start')">{{ icon "play" }}</button>
+              {{ end }}
+              {{ end }}
+              <span class="spinner" x-show="busy" x-cloak></span>
+            </div>
+          </td>
+        </tr>
+        {{ end }}
+      </tbody>
+    </table>
+  </div>
+  {{ else }}
+  <div class="empty">
+    {{ icon "box" }}
+    <h3>{{ if .Query }}No matches{{ else }}No containers{{ end }}</h3>
+    <p>{{ if .Query }}Nothing on this node matches “{{ .Query }}”.{{ else }}The engine is reachable but reports no containers.{{ end }}</p>
+  </div>
+  {{ end }}
+  {{ if .Seed }}
+  <script type="application/json" data-seed>{{ json .Seed }}</script>
+  {{ end }}
+</div>
+{{ end }}

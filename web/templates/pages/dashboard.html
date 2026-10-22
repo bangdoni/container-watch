@@ -1,0 +1,180 @@
+{{ define "content" }}
+{{ if .Flash }}
+<div class="alert alert-{{ .alertClass }} mb-3">{{ icon "alert" }}<span>{{ .Flash }}</span></div>
+{{ end }}
+
+{{/* Live streams: host resources, container metrics and lifecycle events. */}}
+<div class="hide-sm"
+     hx-ext="sse"
+     sse-connect="/events/host?node={{ .NodeID }}">
+  <div sse-swap="host" hx-swap="none" x-init="$store.host.update($event)"></div>
+</div>
+<div hx-ext="sse" sse-connect="/events/metrics?node={{ .NodeID }}">
+  <div sse-swap="metrics" hx-swap="none" x-init="$store.metrics.snap($event)"></div>
+</div>
+<div hx-ext="sse" sse-connect="/events/containers?node={{ .NodeID }}"
+     hx-trigger="sse:containers" hx-get="/containers/table?node={{ .NodeID }}" hx-target="#cw-containers-table"
+     hx-swap="outerHTML"></div>
+
+{{/* ---------------------------------------------------------- summary bar */}}
+<div class="stat-grid mb-3">
+  <div class="stat">
+    <div class="stat-head">{{ icon "box" }} Containers</div>
+    <div class="stat-value">{{ .Summary.Total }}</div>
+    <div class="stat-meta">
+      <span class="text-green">{{ .Summary.Running }} running</span>
+      <span class="text-disabled">·</span>
+      <span class="text-yellow">{{ .Summary.Paused }} paused</span>
+      <span class="text-disabled">·</span>
+      <span class="text-secondary">{{ .Summary.Stopped }} stopped</span>
+    </div>
+  </div>
+
+  <div class="stat">
+    <div class="stat-head">{{ icon "activity" }} Health</div>
+    <div class="stat-value {{ if .Summary.Unhealthy }}text-red{{ end }}">{{ .Summary.Unhealthy }}</div>
+    <div class="stat-meta">
+      {{ if .Summary.Unhealthy }}
+      <span class="text-red">unhealthy containers</span>
+      {{ else }}
+      <span class="text-green">all healthchecks passing</span>
+      {{ end }}
+    </div>
+  </div>
+
+  <div class="stat" x-data>
+    <div class="stat-head">{{ icon "cpu" }} CPU</div>
+    <div class="stat-value" x-text="$store.host.cpu.toFixed(1) + '%'">{{ pct .Host.CPU }}%</div>
+    <div class="bar"><div class="bar-fill" :style="'width:' + Math.min(100, $store.host.cpu) + '%'"
+      style="width: {{ pctWidth .Host.CPU }}"></div></div>
+    <div class="stat-meta">
+      <span>{{ .Host.CPUs }} cores</span>
+      <span class="text-disabled">·</span>
+      <span x-text="'load ' + ($store.host.load || 0).toFixed(2)">load {{ printf "%.2f" .Host.Load }}</span>
+    </div>
+  </div>
+
+  <div class="stat" x-data>
+    <div class="stat-head">{{ icon "memory" }} Memory</div>
+    <div class="stat-value" x-text="window.CW.fmtBytes($store.host.memUsed)">{{ formatBytesIEC .Host.MemUsed }}</div>
+    <div class="bar"><div class="bar-fill" :style="'width:' + Math.min(100, $store.host.memPct) + '%'"
+      style="width: {{ pctWidth .Host.MemPct }}"></div></div>
+    <div class="stat-meta">
+      <span x-text="($store.host.memPct || 0).toFixed(1) + '% of ' + window.CW.fmtBytes($store.host.memTotal)">
+        {{ pct .Host.MemPct }}% of {{ formatBytesIEC .Host.MemTotal }}</span>
+    </div>
+  </div>
+
+  <div class="stat">
+    <div class="stat-head">{{ icon "server" }} Endpoint</div>
+    <div class="stat-value text-lg">{{ default "unknown" .Host.Engine }}</div>
+    <div class="stat-meta">
+      <span class="text-secondary">{{ truncate 34 .Host.Version }}</span>
+      <span class="text-disabled">·</span>
+      <span>{{ .Host.Source }}</span>
+    </div>
+  </div>
+</div>
+
+<div class="grid mb-3" style="grid-template-columns: minmax(0,2fr) minmax(0,1fr); gap:10px">
+  {{/* ------------------------------------------------------- hot containers */}}
+  <div class="card">
+    <div class="card-header">
+      {{ icon "activity" }} Busiest containers
+      <span class="spacer"></span>
+      <span class="text-xs text-disabled">top by CPU</span>
+    </div>
+    {{ if .Top }}
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th class="num">CPU</th>
+            <th class="num">Memory</th>
+            <th class="num hide-sm">Network</th>
+            <th class="num">Trend</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{ range .Top }}
+          <tr>
+            <td>
+              <div class="cell-name">
+                <span class="pill-dot {{ if eq .Accent "green" }}pill-green{{ else if eq .Accent "red" }}pill-red{{ else if eq .Accent "yellow" }}pill-yellow{{ else }}pill-gray{{ end }}"></span>
+                <a class="row-link" href="/containers/{{ .C.ID }}?node={{ $.NodeID }}">{{ .Name }}</a>
+              </div>
+              <span class="cell-sub">{{ truncate 40 .Image }}</span>
+            </td>
+            <td class="num">
+              <span class="text-green" data-live="cpu" data-live-id="{{ .C.ID }}">{{ pct .CPU }}%</span>
+            </td>
+            <td class="num">
+              <span data-live="mem" data-live-id="{{ .C.ID }}">{{ formatBytesIEC .Mem }}</span>
+              <span class="cell-sub">{{ pct .MemPct }}% of {{ formatBytesIEC .MemLimit }}</span>
+            </td>
+            <td class="num hide-sm">
+              <span class="text-xs text-disabled" data-live="net" data-live-id="{{ .C.ID }}">↓ {{ rate .RxRate }} ↑ {{ rate .TxRate }}</span>
+            </td>
+            <td class="num">
+              <div class="spark-wrap">
+                <canvas data-spark="cpu" data-id="{{ .C.ID }}"></canvas>
+              </div>
+            </td>
+          </tr>
+          {{ end }}
+        </tbody>
+      </table>
+    </div>
+    {{ else }}
+    <div class="empty">
+      {{ icon "activity" }}
+      <h3>No live metrics yet</h3>
+      <p>The sampler reports every couple of seconds — this list fills up as soon as containers report usage.</p>
+    </div>
+    {{ end }}
+  </div>
+
+  {{/* ---------------------------------------------------------- host panel */}}
+  <div class="card">
+    <div class="card-header">
+      {{ icon "layers" }} Host
+      <span class="spacer"></span>
+      <span class="pill {{ if .Host.Available }}pill-green{{ else }}pill-gray{{ end }}">
+        <span class="pill-dot"></span>{{ if .Host.Available }}sampled{{ else }}engine only{{ end }}
+      </span>
+    </div>
+    <div class="card-body">
+      <div class="kv">
+        <div class="kv-row"><span class="kv-key">Platform</span><span class="kv-val">{{ default "—" .Host.Platform }}</span></div>
+        <div class="kv-row"><span class="kv-key">Engine</span><span class="kv-val">{{ default "—" .Host.Engine }} {{ truncate 20 .Host.Version }}</span></div>
+        <div class="kv-row"><span class="kv-key">CPUs</span><span class="kv-val">{{ .Host.CPUs }}</span></div>
+        <div class="kv-row"><span class="kv-key">Memory</span><span class="kv-val">{{ formatBytesIEC .Host.MemTotal }}</span></div>
+        <div class="kv-row"><span class="kv-key">Containers</span><span class="kv-val">{{ .Summary.Total }} ({{ .Summary.Running }} up)</span></div>
+        <div class="kv-row"><span class="kv-key">Watcher up</span><span class="kv-val" title="{{ dateTime .Started }}">{{ timeAgo .Started }}</span></div>
+      </div>
+      {{ if .ServerVer }}
+      <div class="divider"></div>
+      <div class="kv">
+        <div class="kv-row"><span class="kv-key">Endpoint</span><span class="kv-val break-all">{{ .ServerVer.Endpoint }}</span></div>
+        <div class="kv-row"><span class="kv-key">Checked</span><span class="kv-val">{{ timeAgo .ServerVer.CheckedAt }}</span></div>
+      </div>
+      {{ end }}
+    </div>
+  </div>
+</div>
+
+{{/* ------------------------------------------------------- container table */}}
+<div class="card">
+  <div class="card-header">
+    {{ icon "box" }} Containers
+    <span class="spacer"></span>
+    <a class="btn btn-ghost btn-sm" href="/containers?node={{ .NodeID }}">View all {{ icon "chevron" }}</a>
+  </div>
+  {{ template "containers-table" . }}
+</div>
+
+{{ if .Seed }}
+<script type="application/json" data-seed>{{ json .Seed }}</script>
+{{ end }}
+{{ end }}

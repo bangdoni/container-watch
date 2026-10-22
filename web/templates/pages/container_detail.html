@@ -1,0 +1,217 @@
+{{ define "content" }}
+{{ if .Flash }}
+<div class="alert alert-{{ .alertClass }} mb-3">{{ icon "alert" }}<span>{{ .Flash }}</span></div>
+{{ end }}
+
+<div class="flex items-center gap-2 mb-3 flex-wrap">
+  <a class="btn btn-ghost btn-sm" href="/containers?node={{ .NodeID }}">{{ icon "chevron" }} Containers</a>
+  <div class="topbar-spacer"></div>
+</div>
+
+{{ if and (not .Inspect) .Error }}
+<div class="card">
+  <div class="empty">
+    {{ icon "alert" }}
+    <h3>Container unavailable</h3>
+    <p>{{ .Error }}</p>
+  </div>
+</div>
+{{ else }}
+
+{{/* ------------------------------------------------------------- header */}}
+<div class="card mb-3" data-node="{{ .NodeID }}" data-cid="{{ .InspectID }}" data-cname="{{ .Row.Name }}" x-data="cwContainer($el)">
+  <div class="card-body">
+    <div class="flex items-center gap-2 flex-wrap">
+      <span class="cell-avatar" style="width:30px;height:30px">{{ icon "box" }}</span>
+      <div style="min-width:0">
+        <div class="flex items-center gap-2">
+          <h1 class="text-xl font-semibold">{{ .Row.Name }}</h1>
+          <span class="pill pill-{{ .Row.Accent }}"><span class="pill-dot"></span>{{ .Row.State }}</span>
+          {{ if .Row.Health }}
+          <span class="pill {{ if eq .Row.Health "healthy" }}pill-green{{ else if eq .Row.Health "unhealthy" }}pill-red{{ else }}pill-yellow{{ end }}">{{ .Row.Health }}</span>
+          {{ end }}
+        </div>
+        <div class="text-xs text-disabled mt-1 break-all">
+          <button type="button" class="id-tag" data-copy="{{ .InspectID }}">{{ .InspectID }}{{ icon "copy" }}</button>
+          <span class="text-disabled">·</span>
+          <span>{{ .Row.Image }}</span>
+          {{ if .Row.Uptime }}<span class="text-disabled">·</span><span>up {{ .Row.Uptime }}</span>{{ end }}
+        </div>
+      </div>
+      <div class="topbar-spacer"></div>
+      <div class="flex items-center gap-1 flex-wrap">
+        <button type="button" class="btn btn-sm" @click="openLogs()">{{ icon "logs" }} Logs</button>
+        <button type="button" class="btn btn-sm" @click="openMetrics()">{{ icon "activity" }} Metrics</button>
+        {{ if isAdmin .User }}
+          {{ if .Row.Running }}
+        <button type="button" class="btn btn-sm" :disabled="busy" @click="act('restart')">{{ icon "restart" }} Restart</button>
+        <button type="button" class="btn btn-sm" :disabled="busy" @click="act('pause')">{{ icon "pause" }} Pause</button>
+        <button type="button" class="btn btn-danger btn-sm" :disabled="busy" @click="act('stop')">{{ icon "stop" }} Stop</button>
+          {{ else if .Row.Paused }}
+        <button type="button" class="btn btn-success btn-sm" :disabled="busy" @click="act('unpause')">{{ icon "play" }} Unpause</button>
+          {{ else }}
+        <button type="button" class="btn btn-success btn-sm" :disabled="busy" @click="act('start')">{{ icon "play" }} Start</button>
+          {{ end }}
+        {{ end }}
+        <span class="spinner" x-show="busy" x-cloak></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+{{/* ------------------------------------------------------- live metrics */}}
+<div class="chart-grid mb-3">
+  <div class="card chart">
+    <div class="chart-head">
+      <span class="chart-title">{{ icon "cpu" }} CPU</span>
+      <span class="chart-value"><span data-chart-value="{{ .InspectID }}" data-kind="cpu">{{ pct .Row.CPU }}%</span></span>
+    </div>
+    <svg class="chart-svg" data-chart="cpu" data-chart-key="{{ .NodeID }}/{{ .InspectID }}" viewBox="0 0 320 74" preserveAspectRatio="none"></svg>
+  </div>
+  <div class="card chart">
+    <div class="chart-head">
+      <span class="chart-title">{{ icon "memory" }} Memory</span>
+      <span class="chart-value"><span data-chart-value="{{ .InspectID }}" data-kind="mem">{{ formatBytesIEC .Row.Mem }}</span></span>
+    </div>
+    <svg class="chart-svg" data-chart="mem" data-chart-key="{{ .NodeID }}/{{ .InspectID }}" viewBox="0 0 320 74" preserveAspectRatio="none"></svg>
+  </div>
+  <div class="card chart">
+    <div class="chart-head">
+      <span class="chart-title">{{ icon "activity" }} Network</span>
+      <span class="chart-value"><span data-chart-value="{{ .InspectID }}" data-kind="io">{{ rate .Row.RxRate }}</span></span>
+    </div>
+    <svg class="chart-svg" data-chart="io" data-chart-key="{{ .NodeID }}/{{ .InspectID }}" viewBox="0 0 320 74" preserveAspectRatio="none"></svg>
+  </div>
+</div>
+
+<div hx-ext="sse" sse-connect="/events/metrics?node={{ .NodeID }}">
+  <div sse-swap="metrics" hx-swap="none" x-init="$store.metrics.snap($event)"></div>
+</div>
+
+{{/* --------------------------------------------------------- inspect grid */}}
+<div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:10px">
+  <div class="card">
+    <div class="card-header">{{ icon "info" }} Configuration</div>
+    <div class="card-body">
+      <div class="kv">
+        <div class="kv-row"><span class="kv-key">Name</span><span class="kv-val">{{ default "—" .Inspect.Name }}</span></div>
+        <div class="kv-row"><span class="kv-key">Image</span><span class="kv-val break-all">{{ default "—" .Inspect.Config.Image }}</span></div>
+        <div class="kv-row"><span class="kv-key">Command</span><span class="kv-val break-all mono text-xs">{{ default "—" .Command }}</span></div>
+        <div class="kv-row"><span class="kv-key">Working dir</span><span class="kv-val mono text-xs">{{ default "—" .Inspect.Config.WorkingDir }}</span></div>
+        <div class="kv-row"><span class="kv-key">Hostname</span><span class="kv-val mono text-xs">{{ default "—" .Inspect.Config.Hostname }}</span></div>
+        <div class="kv-row"><span class="kv-key">Restart</span><span class="kv-val">{{ default "no" .Inspect.HostConfig.RestartPolicy.Name }}{{ if .Inspect.HostConfig.RestartPolicy.MaximumRetryCount }} ({{ .Inspect.HostConfig.RestartPolicy.MaximumRetryCount }}){{ end }}</span></div>
+        <div class="kv-row"><span class="kv-key">Network mode</span><span class="kv-val">{{ default "—" .Inspect.HostConfig.NetworkMode }}</span></div>
+        <div class="kv-row"><span class="kv-key">PID</span><span class="kv-val">{{ .Inspect.State.Pid }}</span></div>
+        <div class="kv-row"><span class="kv-key">Exit code</span><span class="kv-val">{{ .Inspect.State.ExitCode }}</span></div>
+        <div class="kv-row"><span class="kv-key">Started</span><span class="kv-val">{{ if .Started.IsZero }}—{{ else }}{{ dateTime .Started }}{{ end }}</span></div>
+        {{ if not .Finished.IsZero }}
+        <div class="kv-row"><span class="kv-key">Finished</span><span class="kv-val">{{ dateTime .Finished }}</span></div>
+        {{ end }}
+        <div class="kv-row"><span class="kv-key">CPU limit</span><span class="kv-val">{{ with .Inspect.CPUQuotaPercent }}{{ pct . }}%{{ else }}unlimited{{ end }}</span></div>
+        <div class="kv-row"><span class="kv-key">Memory limit</span><span class="kv-val">{{ if .Inspect.HostConfig.Memory }}{{ formatBytesIEC .Inspect.HostConfig.Memory }}{{ else }}unlimited{{ end }}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">{{ icon "globe" }} Ports</div>
+    <div class="card-body">
+      {{ if .Ports }}
+      <div class="ports" style="max-width:none">
+        {{ range .Ports }}
+        <span class="port">
+          <span class="host">{{ default "—" .Host }}</span><span class="arrow">→</span>{{ .Container }}
+        </span>
+        {{ end }}
+      </div>
+      {{ else }}
+      <p class="text-disabled text-sm">No ports published or exposed.</p>
+      {{ end }}
+
+      {{ if .Inspect.NetworkSettings.Networks }}
+      <div class="divider"></div>
+      <div class="section-title">Networks</div>
+      <div class="kv">
+        {{ range $name, $net := .Inspect.NetworkSettings.Networks }}
+        <div class="kv-row">
+          <span class="kv-key">{{ $name }}</span>
+          <span class="kv-val mono text-xs">{{ default "—" $net.IPAddress }}{{ if $net.MacAddress }} · {{ $net.MacAddress }}{{ end }}</span>
+        </div>
+        {{ end }}
+      </div>
+      {{ end }}
+
+      {{ if .Inspect.Mounts }}
+      <div class="divider"></div>
+      <div class="section-title">Mounts</div>
+      <div class="kv">
+        {{ range .Inspect.Mounts }}
+        <div class="kv-row">
+          <span class="kv-key">{{ .Type }}</span>
+          <span class="kv-val break-all mono text-xs">{{ default .Source .Name }} → {{ .Destination }}{{ if not .RW }} <span class="text-yellow">ro</span>{{ end }}</span>
+        </div>
+        {{ end }}
+      </div>
+      {{ end }}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">{{ icon "key" }} Environment</div>
+    <div class="card-body">
+      {{ if .Env }}
+      <div class="env-list">
+        {{ range .Env }}
+        <div title="{{ . }}">{{ truncate 60 . }}</div>
+        {{ end }}
+      </div>
+      {{ else }}
+      <p class="text-disabled text-sm">No environment variables.</p>
+      {{ end }}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">{{ icon "filter" }} Labels</div>
+    <div class="card-body">
+      {{ if .Labels }}
+      <div class="kv">
+        {{ range $k, $v := .Labels }}
+        <div class="kv-row"><span class="kv-key break-all">{{ $k }}</span><span class="kv-val break-all mono text-xs">{{ $v }}</span></div>
+        {{ end }}
+      </div>
+      {{ else }}
+      <p class="text-disabled text-sm">No labels.</p>
+      {{ end }}
+    </div>
+  </div>
+
+  {{ if .HealthLogs }}
+  <div class="card">
+    <div class="card-header">{{ icon "shield" }} Healthcheck history</div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Started</th><th class="num">Exit</th><th>Output</th></tr></thead>
+        <tbody>
+          {{ range .HealthLogs }}
+          <tr>
+            <td class="mono text-xs">{{ .Start }}</td>
+            <td class="num {{ if .ExitCode }}text-red{{ else }}text-green{{ end }}">{{ .ExitCode }}</td>
+            <td class="mono text-xs break-all">{{ truncate 160 .Output }}</td>
+          </tr>
+          {{ end }}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {{ end }}
+</div>
+
+{{ if .Data }}
+{{ with .Data.chartKey }}
+<script type="application/json" data-chart-seed>{{ json (dict "key" . "series" $.Data.series) }}</script>
+{{ end }}
+{{ end }}
+
+{{ end }}
+{{ end }}

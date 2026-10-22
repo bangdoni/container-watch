@@ -1,0 +1,32 @@
+{{ define "content" }}
+<form class="auth-form" method="post" action="/signup" autocomplete="on">
+  <input type="hidden" name="_csrf" value="{{ .CSRF }}">
+  <div class="field">
+    <label class="label" for="username">Username</label>
+    <input class="input" id="username" name="username" type="text" value="{{ .Username }}"
+           autocomplete="username" autofocus required minlength="3" maxlength="32" spellcheck="false">
+  </div>
+  <div class="field">
+    <label class="label" for="email">Email <span class="text-disabled">(optional)</span></label>
+    <input class="input" id="email" name="email" type="email" value="{{ .Email }}"
+           autocomplete="email" spellcheck="false">
+  </div>
+  <div class="field">
+    <label class="label" for="password">Password</label>
+    <input class="input" id="password" name="password" type="password"
+           autocomplete="new-password" required minlength="8">
+  </div>
+  <div class="field">
+    <label class="label" for="confirm">Confirm password</label>
+    <input class="input" id="confirm" name="confirm" type="password"
+           autocomplete="new-password" required minlength="8">
+  </div>
+  <div class="alert alert-info">
+    {{ icon "info" }}<span>New accounts are read-only. An administrator can promote you later.</span>
+  </div>
+  <button class="btn btn-primary btn-block" type="submit">{{ icon "user" }} Create account</button>
+</form>
+<div class="auth-foot">
+  Already registered? <a href="/login{{ if .Next }}?next={{ .Next }}{{ end }}">Sign in</a>
+</div>
+{{ end }}

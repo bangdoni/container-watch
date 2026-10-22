@@ -1,0 +1,170 @@
+{{/* Container inspect modal (quick view). */}}
+{{ define "container-detail" }}
+<div class="modal-header">
+  <div style="min-width:0">
+    <div class="modal-title">{{ if .Row.Name }}{{ .Row.Name }}{{ else }}Container{{ end }}</div>
+    <div class="modal-sub">
+      {{ if .InspectID }}<span class="mono">{{ truncate 12 .InspectID }}</span>{{ end }}
+      {{ if .Row.Image }} · {{ .Row.Image }}{{ end }}
+    </div>
+  </div>
+  <button class="modal-close" type="button" @click="$store.ui.close()" aria-label="Close">{{ icon "x" }}</button>
+</div>
+
+{{ if .Error }}
+<div class="modal-body">
+  <div class="alert alert-error">{{ icon "alert" }}<span>{{ .Error }}</span></div>
+</div>
+<div class="modal-footer">
+  <button type="button" class="btn" @click="$store.ui.close()">Close</button>
+</div>
+{{ else }}
+
+<div class="modal-body" data-node="{{ .NodeID }}" data-cid="{{ .InspectID }}" data-cname="{{ .Row.Name }}" x-data="cwContainer($el)">
+  <div class="flex items-center gap-2 flex-wrap mb-3">
+    <span class="pill pill-{{ .Row.Accent }}"><span class="pill-dot"></span>{{ .Row.State }}</span>
+    {{ if .Row.Health }}
+    <span class="pill {{ if eq .Row.Health "healthy" }}pill-green{{ else if eq .Row.Health "unhealthy" }}pill-red{{ else }}pill-yellow{{ end }}">{{ .Row.Health }}</span>
+    {{ end }}
+    <span class="text-xs text-disabled">{{ default "—" .Row.Uptime }}</span>
+    <div class="topbar-spacer"></div>
+    <button type="button" class="btn btn-sm" @click="openLogs()">{{ icon "logs" }} Logs</button>
+    <button type="button" class="btn btn-sm" @click="openMetrics()">{{ icon "activity" }} Metrics</button>
+    <a class="btn btn-sm btn-ghost" href="/containers/{{ .InspectID }}?node={{ .NodeID }}">{{ icon "external" }} Full page</a>
+  </div>
+
+  <div class="chart-grid mb-3">
+    <div class="chart">
+      <div class="chart-head">
+        <span class="chart-title">CPU</span>
+        <span class="chart-value" data-chart-value="{{ .InspectID }}" data-kind="cpu">{{ pct .Row.CPU }}%</span>
+      </div>
+      <svg class="chart-svg" data-chart="cpu" data-chart-key="{{ .NodeID }}/{{ .InspectID }}" viewBox="0 0 320 74" preserveAspectRatio="none"></svg>
+    </div>
+    <div class="chart">
+      <div class="chart-head">
+        <span class="chart-title">Memory</span>
+        <span class="chart-value" data-chart-value="{{ .InspectID }}" data-kind="mem">{{ formatBytesIEC .Row.Mem }}</span>
+      </div>
+      <svg class="chart-svg" data-chart="mem" data-chart-key="{{ .NodeID }}/{{ .InspectID }}" viewBox="0 0 320 74" preserveAspectRatio="none"></svg>
+    </div>
+    <div class="chart">
+      <div class="chart-head">
+        <span class="chart-title">Network</span>
+        <span class="chart-value" data-chart-value="{{ .InspectID }}" data-kind="io">–</span>
+      </div>
+      <svg class="chart-svg" data-chart="io" data-chart-key="{{ .NodeID }}/{{ .InspectID }}" viewBox="0 0 320 74" preserveAspectRatio="none"></svg>
+    </div>
+  </div>
+
+  <div class="section-title">{{ icon "info" }} Configuration</div>
+  <div class="kv">
+    <div class="kv-item"><div class="kv-key">Image</div><div class="kv-val break-all">{{ default "—" .Inspect.Config.Image }}</div></div>
+    <div class="kv-item"><div class="kv-key">Command</div><div class="kv-val mono break-all text-xs">{{ default "—" .Command }}</div></div>
+    <div class="kv-item"><div class="kv-key">Working dir</div><div class="kv-val mono text-xs">{{ default "—" .Inspect.Config.WorkingDir }}</div></div>
+    <div class="kv-item"><div class="kv-key">Hostname</div><div class="kv-val mono text-xs">{{ default "—" .Inspect.Config.Hostname }}</div></div>
+    <div class="kv-item"><div class="kv-key">Network mode</div><div class="kv-val">{{ default "—" .Inspect.HostConfig.NetworkMode }}</div></div>
+    <div class="kv-item"><div class="kv-key">Restart policy</div>
+      <div class="kv-val">{{ default "no" .Inspect.HostConfig.RestartPolicy.Name }}{{ if .Inspect.HostConfig.RestartPolicy.MaximumRetryCount }} · {{ .Inspect.HostConfig.RestartPolicy.MaximumRetryCount }}{{ end }}</div></div>
+    <div class="kv-item"><div class="kv-key">PID</div><div class="kv-val mono">{{ .Inspect.State.Pid }}</div></div>
+    <div class="kv-item"><div class="kv-key">Exit code</div><div class="kv-val mono">{{ .Inspect.State.ExitCode }}</div></div>
+    <div class="kv-item"><div class="kv-key">Started</div><div class="kv-val">{{ if .Started.IsZero }}—{{ else }}{{ dateTime .Started }}{{ end }}</div></div>
+    {{ if not .Finished.IsZero }}
+    <div class="kv-item"><div class="kv-key">Finished</div><div class="kv-val">{{ dateTime .Finished }}</div></div>
+    {{ end }}
+    <div class="kv-item"><div class="kv-key">CPU limit</div><div class="kv-val">{{ with .Inspect.CPUQuotaPercent }}{{ pct . }}%{{ else }}unlimited{{ end }}</div></div>
+    <div class="kv-item"><div class="kv-key">Memory limit</div><div class="kv-val">{{ if .Inspect.HostConfig.Memory }}{{ formatBytesIEC .Inspect.HostConfig.Memory }}{{ else }}unlimited{{ end }}</div></div>
+  </div>
+
+  <div class="section-title">{{ icon "globe" }} Ports</div>
+  {{ if .Ports }}
+  <div class="ports" style="max-width:none">
+    {{ range .Ports }}
+    <span class="port"><span class="host">{{ default "—" .Host }}</span><span class="arrow">→</span>{{ .Container }}</span>
+    {{ end }}
+  </div>
+  {{ else }}
+  <p class="text-disabled text-sm">No ports published or exposed.</p>
+  {{ end }}
+
+  {{ if .Inspect.NetworkSettings.Networks }}
+  <div class="section-title">{{ icon "network" }} Networks</div>
+  <div class="kv">
+    {{ range $name, $net := .Inspect.NetworkSettings.Networks }}
+    <div class="kv-item">
+      <div class="kv-key">{{ $name }}</div>
+      <div class="kv-val mono text-xs">{{ default "—" $net.IPAddress }}{{ if $net.MacAddress }} · {{ $net.MacAddress }}{{ end }}</div>
+    </div>
+    {{ end }}
+  </div>
+  {{ end }}
+
+  {{ if .Inspect.Mounts }}
+  <div class="section-title">{{ icon "database" }} Mounts</div>
+  <div class="kv">
+    {{ range .Inspect.Mounts }}
+    <div class="kv-item">
+      <div class="kv-key">{{ .Type }}</div>
+      <div class="kv-val break-all mono text-xs">{{ default .Source .Name }} → {{ .Destination }}{{ if not .RW }} <span class="text-yellow">ro</span>{{ end }}</div>
+    </div>
+    {{ end }}
+  </div>
+  {{ end }}
+
+  {{ if .Env }}
+  <div class="section-title">{{ icon "key" }} Environment</div>
+  <div class="env-list">
+    {{ range .Env }}
+    <div title="{{ . }}">{{ . }}</div>
+    {{ end }}
+  </div>
+  {{ end }}
+
+  {{ if .Labels }}
+  <div class="section-title">{{ icon "tag" }} Labels</div>
+  <div class="kv">
+    {{ range $k, $v := .Labels }}
+    <div class="kv-item"><div class="kv-key break-all">{{ $k }}</div><div class="kv-val break-all mono text-xs">{{ $v }}</div></div>
+    {{ end }}
+  </div>
+  {{ end }}
+
+  {{ if .HealthLogs }}
+  <div class="section-title">{{ icon "shield" }} Healthcheck history</div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Started</th><th class="num">Exit</th><th>Output</th></tr></thead>
+      <tbody>
+        {{ range .HealthLogs }}
+        <tr>
+          <td class="mono text-xs">{{ .Start }}</td>
+          <td class="num {{ if .ExitCode }}text-red{{ else }}text-green{{ end }}">{{ .ExitCode }}</td>
+          <td class="mono text-xs break-all">{{ truncate 160 .Output }}</td>
+        </tr>
+        {{ end }}
+      </tbody>
+    </table>
+  </div>
+  {{ end }}
+</div>
+
+<div class="modal-footer">
+  {{ if isAdmin $.User }}
+  <div class="mr-auto flex items-center gap-1">
+    {{ if .Row.Running }}
+    <button type="button" class="btn btn-sm" :disabled="busy" @click="act('restart')">{{ icon "restart" }} Restart</button>
+    <button type="button" class="btn btn-danger btn-sm" :disabled="busy" @click="act('stop')">{{ icon "stop" }} Stop</button>
+    {{ else if .Row.Paused }}
+    <button type="button" class="btn btn-success btn-sm" :disabled="busy" @click="act('unpause')">{{ icon "play" }} Resume</button>
+    {{ else }}
+    <button type="button" class="btn btn-success btn-sm" :disabled="busy" @click="act('start')">{{ icon "play" }} Start</button>
+    {{ end }}
+    <span class="spinner" x-show="busy" x-cloak></span>
+  </div>
+  {{ end }}
+  <button type="button" class="btn" @click="$store.ui.close()">Close</button>
+</div>
+
+<script type="application/json" data-chart-seed>{{ json (dict "key" (printf "%d/%s" .NodeID .InspectID) "series" .Series) }}</script>
+{{ end }}
+{{ end }}

@@ -1,0 +1,84 @@
+{{ define "content" }}
+{{ if .Flash }}
+<div class="alert alert-{{ .alertClass }} mb-3">{{ icon "alert" }}<span>{{ .Flash }}</span></div>
+{{ end }}
+{{ if .Error }}
+<div class="alert alert-error mb-3">{{ icon "alert" }}<span>{{ .Error }}</span></div>
+{{ end }}
+{{ if .Notice }}
+<div class="alert alert-success mb-3">{{ icon "check" }}<span>{{ .Notice }}</span></div>
+{{ end }}
+
+<div class="flex items-center gap-2 mb-3 flex-wrap">
+  <div>
+    <h1 class="text-xl font-semibold">Account</h1>
+    <p class="text-xs text-disabled mt-1">Your ContainerWatch profile and credentials.</p>
+  </div>
+</div>
+
+<div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap:10px">
+  <div class="card">
+    <div class="card-header">{{ icon "user" }} Profile</div>
+    <div class="card-body">
+      <div class="flex items-center gap-3 mb-3">
+        <span class="cell-avatar" style="width:32px;height:32px">{{ initial .User.Username }}</span>
+        <div style="min-width:0">
+          <div class="font-semibold">{{ .User.Username }}</div>
+          <div class="text-xs text-disabled">{{ default "no email on file" .User.Email }}</div>
+        </div>
+        <div class="topbar-spacer"></div>
+        <span class="pill {{ if .User.IsAdmin }}pill-orange{{ else }}pill-gray{{ end }}">
+          {{ if .User.IsAdmin }}administrator{{ else }}viewer{{ end }}
+        </span>
+      </div>
+      <div class="kv">
+        <div class="kv-item">
+          <div class="kv-key">Role</div>
+          <div class="kv-val">
+            {{ if .User.IsAdmin }}
+            Full control: lifecycle actions, nodes, users and settings.
+            {{ else }}
+            Read-only: dashboards, metrics and logs. An administrator can promote you.
+            {{ end }}
+          </div>
+        </div>
+        <div class="kv-item">
+          <div class="kv-key">Member since</div>
+          <div class="kv-val">{{ dateTime .User.CreatedAt }}</div>
+        </div>
+        <div class="kv-item">
+          <div class="kv-key">Last sign-in</div>
+          <div class="kv-val">{{ if .User.LastLoginAt }}{{ timeAgo .User.LastLoginAt }}{{ else }}this session{{ end }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">{{ icon "key" }} Change password</div>
+    <form class="card-body" method="post" action="/account/password" autocomplete="off">
+      <input type="hidden" name="_csrf" value="{{ .CSRF }}">
+      <div class="field">
+        <label class="label" for="current_password">Current password</label>
+        <input class="input" id="current_password" name="current_password" type="password"
+               autocomplete="current-password" required>
+      </div>
+      <div class="field mt-2">
+        <label class="label" for="new_password">New password</label>
+        <input class="input" id="new_password" name="new_password" type="password"
+               autocomplete="new-password" required minlength="8">
+        <span class="hint">At least 8 characters. Argon2id is used to hash it.</span>
+      </div>
+      <div class="field mt-2">
+        <label class="label" for="confirm_password">Confirm new password</label>
+        <input class="input" id="confirm_password" name="confirm_password" type="password"
+               autocomplete="new-password" required minlength="8">
+      </div>
+      <div class="flex items-center gap-2 mt-3">
+        <button type="submit" class="btn btn-primary">{{ icon "save" }} Update password</button>
+        <span class="text-xs text-disabled">Other sessions are signed out afterwards.</span>
+      </div>
+    </form>
+  </div>
+</div>
+{{ end }}

@@ -1,0 +1,23 @@
+# Build output
+/bin/
+/containerwatch
+/dist/
+
+# Runtime state
+/data/
+*.db
+*.db-wal
+*.db-shm
+secret.key
+
+# Local configuration
+.env
+.env.local
+
+# Tooling noise
+*.test
+*.out
+coverage.txt
+.DS_Store
+.idea/
+.vscode/

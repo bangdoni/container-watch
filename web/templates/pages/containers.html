@@ -1,0 +1,41 @@
+{{ define "content" }}
+{{ if .Flash }}
+<div class="alert alert-{{ .alertClass }} mb-3">{{ icon "alert" }}<span>{{ .Flash }}</span></div>
+{{ end }}
+
+<div class="toolbar mb-3">
+  <div class="search">
+    {{ icon "search" }}
+    <input class="input" type="search" id="container-search" name="q" value="{{ .Query }}"
+           placeholder="Search name, image, id, port or label…"
+           autocomplete="off" spellcheck="false"
+           hx-get="/containers/table?node={{ .NodeID }}&state={{ default "all" .Filter }}"
+           hx-trigger="input changed delay:220ms, search"
+           hx-target="#cw-containers-table"
+           hx-swap="outerHTML">
+    <span class="kbd hide-sm">/</span>
+    <span class="spinner htmx-indicator"></span>
+  </div>
+  <div class="seg">
+    <a class="{{ if eq (default "all" .Filter) "all" }}on{{ end }}" href="?node={{ .NodeID }}&state=all{{ if .Query }}&q={{ .Query }}{{ end }}">All {{ .Summary.Total }}</a>
+    <a class="{{ if eq .Filter "running" }}on{{ end }}" href="?node={{ .NodeID }}&state=running{{ if .Query }}&q={{ .Query }}{{ end }}">Running {{ .Summary.Running }}</a>
+    <a class="{{ if eq .Filter "paused" }}on{{ end }}" href="?node={{ .NodeID }}&state=paused{{ if .Query }}&q={{ .Query }}{{ end }}">Paused {{ .Summary.Paused }}</a>
+    <a class="{{ if eq .Filter "stopped" }}on{{ end }}" href="?node={{ .NodeID }}&state=stopped{{ if .Query }}&q={{ .Query }}{{ end }}">Stopped {{ .Summary.Stopped }}</a>
+    <a class="{{ if eq .Filter "unhealthy" }}on{{ end }}" href="?node={{ .NodeID }}&state=unhealthy{{ if .Query }}&q={{ .Query }}{{ end }}">Unhealthy {{ .Summary.Unhealthy }}</a>
+  </div>
+  <div class="topbar-spacer"></div>
+  <div class="flex items-center gap-1 text-xs text-disabled hide-sm">
+    <span class="pill-dot {{ if .NodeOnline }}pill-green{{ else }}pill-red{{ end }}"></span>
+    {{ if .NodeOnline }}live{{ else }}node offline{{ end }}
+  </div>
+  <button type="button" class="btn btn-ghost btn-sm" title="Refresh now"
+          hx-get="/containers/table?node={{ .NodeID }}&state={{ default "all" .Filter }}&q={{ .Query }}"
+          hx-target="#cw-containers-table" hx-swap="outerHTML">
+    {{ icon "restart" }} <span class="hide-sm">Refresh</span>
+  </button>
+</div>
+
+<div class="card">
+  {{ template "containers-table" . }}
+</div>
+{{ end }}

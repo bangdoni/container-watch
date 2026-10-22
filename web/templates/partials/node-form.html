@@ -1,0 +1,79 @@
+{{/* Add / edit node modal. Data: nodeForm. Errors re-render the whole modal. */}}
+{{ define "node-form" }}
+<div class="modal-header">
+  <div>
+    <div class="modal-title">{{ if eq .Mode "edit" }}Edit node{{ else }}Add node{{ end }}</div>
+    <div class="modal-sub">Docker or Podman Engine API endpoint</div>
+  </div>
+  <button class="modal-close" type="button" @click="$store.ui.close()" aria-label="Close">{{ icon "x" }}</button>
+</div>
+
+<form {{ if eq .Mode "edit" }}hx-post="/admin/nodes/{{ .ID }}"{{ else }}hx-post="/admin/nodes"{{ end }}
+      hx-target="closest .modal" hx-swap="innerHTML">
+  <div class="modal-body">
+    {{ if .Error }}
+    <div class="alert alert-error mb-3">{{ icon "alert" }}<span>{{ .Error }}</span></div>
+    {{ end }}
+
+    <div class="grid" style="grid-template-columns: 1fr 150px; gap:10px">
+      <div class="field">
+        <label class="label" for="node-name">Name</label>
+        <input class="input" id="node-name" name="name" type="text" value="{{ .Name }}"
+               placeholder="edge-01" maxlength="80" required autofocus spellcheck="false">
+      </div>
+      <div class="field">
+        <label class="label" for="node-engine">Engine</label>
+        <select class="select" id="node-engine" name="engine">
+          <option value="auto" {{ if eq .Engine "auto" }}selected{{ end }}>Auto-detect</option>
+          <option value="docker" {{ if eq .Engine "docker" }}selected{{ end }}>Docker</option>
+          <option value="podman" {{ if eq .Engine "podman" }}selected{{ end }}>Podman</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field mt-3">
+      <label class="label" for="node-endpoint">Endpoint</label>
+      <input class="input" id="node-endpoint" name="endpoint" type="text" value="{{ .Endpoint }}"
+             placeholder="unix:///var/run/docker.sock" required spellcheck="false"
+             {{ if .IsLocal }}readonly{{ end }}>
+      <span class="hint">
+        unix:///var/run/docker.sock · tcp://10.0.0.5:2376 · https://podman.example:2376
+        {{ if .IsLocal }}<br>The local socket is discovered automatically; its endpoint is fixed.{{ end }}
+      </span>
+    </div>
+
+    <div class="section-title">{{ icon "lock" }} TLS
+      <span class="text-disabled text-xs" style="text-transform:none;letter-spacing:0">optional — needed for a TLS-enabled TCP endpoint</span>
+    </div>
+
+    <div class="field">
+      <label class="label" for="node-ca">CA certificate</label>
+      <textarea class="textarea" id="node-ca" name="tls_ca" rows="2" spellcheck="false"
+                placeholder="-----BEGIN CERTIFICATE-----">{{ .TLSCA }}</textarea>
+    </div>
+    <div class="grid mt-2" style="grid-template-columns: 1fr 1fr; gap:10px">
+      <div class="field">
+        <label class="label" for="node-cert">Client certificate</label>
+        <textarea class="textarea" id="node-cert" name="tls_cert" rows="2" spellcheck="false"
+                  placeholder="-----BEGIN CERTIFICATE-----">{{ .TLSCert }}</textarea>
+      </div>
+      <div class="field">
+        <label class="label" for="node-key">Client key</label>
+        <textarea class="textarea" id="node-key" name="tls_key" rows="2" spellcheck="false"
+                  placeholder="-----BEGIN PRIVATE KEY-----">{{ .TLSKey }}</textarea>
+      </div>
+    </div>
+    <p class="hint mt-1">
+      Certificates are stored in the local database. Mount them as files and use a
+      TLS-enabled socket instead if your policy forbids that.
+    </p>
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn btn-ghost" @click="$store.ui.close()">Cancel</button>
+    <button type="submit" class="btn btn-primary">
+      {{ icon "save" }} {{ if eq .Mode "edit" }}Save changes{{ else }}Add node{{ end }}
+    </button>
+  </div>
+</form>
+{{ end }}

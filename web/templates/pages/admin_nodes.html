@@ -1,0 +1,67 @@
+{{ define "content" }}
+{{ if .Flash }}
+<div class="alert alert-{{ .alertClass }} mb-3">{{ icon "alert" }}<span>{{ .Flash }}</span></div>
+{{ end }}
+
+<div class="flex items-center gap-2 mb-3 flex-wrap">
+  <div>
+    <h1 class="text-xl font-semibold">Nodes</h1>
+    <p class="text-xs text-disabled mt-1">Engine endpoints ContainerWatch polls for containers and statistics.</p>
+  </div>
+  <div class="topbar-spacer"></div>
+  <button type="button" class="btn btn-primary"
+          @click="$store.ui.open('node', { url: '/admin/nodes/new', size: 'modal-lg' })">
+    {{ icon "plus" }} Add node
+  </button>
+</div>
+
+{{ if .Cards }}
+<div class="grid" style="grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap:10px" id="node-grid">
+  {{ range .Cards }}
+  {{ template "node-card" . }}
+  {{ end }}
+</div>
+{{ else }}
+<div class="card">
+  <div class="empty">
+    {{ icon "server" }}
+    <h3>No nodes configured</h3>
+    <p>Mount a container socket into the containerwatch container, or add a remote endpoint.</p>
+  </div>
+</div>
+{{ end }}
+
+<div class="card mt-3">
+  <div class="card-header">{{ icon "search" }} Local discovery</div>
+  <div class="card-body">
+    <div class="kv">
+      <div class="kv-item">
+        <div class="kv-key">Sockets scanned at startup</div>
+        <div class="kv-val mono text-xs break-all">
+          {{ if .LocalSockets }}
+            {{ range .LocalSockets }}<div>{{ . }}</div>{{ end }}
+          {{ else }}
+            <span class="text-disabled">none</span>
+          {{ end }}
+        </div>
+      </div>
+      <div class="kv-item">
+        <div class="kv-key">Auto-discovery</div>
+        <div class="kv-val">
+          {{ if .Disabled }}
+            <span class="text-yellow">disabled</span> <span class="text-disabled text-xs">(CONTAINERWATCH_DISABLE_LOCAL_DISCOVERY)</span>
+          {{ else }}
+            <span class="text-green">enabled</span>
+          {{ end }}
+        </div>
+      </div>
+    </div>
+    <p class="hint mt-2">
+      The process must be able to read the socket. For Docker on Linux that usually means
+      mounting <span class="mono">/var/run/docker.sock</span> and either running as root or
+      joining the <span class="mono">docker</span> group, whose GID you can pass with
+      <span class="mono">--group-add</span>.
+    </p>
+  </div>
+</div>
+{{ end }}

@@ -1,0 +1,42 @@
+{{ define "layout" }}
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#111217">
+  <meta name="htmx-config" content='{"historyCacheSize":0,"defaultSwapStyle":"innerHTML","includeIndicatorStyles":false}'>
+  <title>{{ .Title }} · ContainerWatch</title>
+  <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script src="/static/js/htmx.min.js" defer></script>
+  <script src="/static/js/htmx-sse.js" defer></script>
+  <script src="/static/js/alpine.min.js" defer></script>
+  <script src="/static/js/containers.js" defer></script>
+  <script src="/static/js/logs.js" defer></script>
+  <script src="/static/js/app.js" defer></script>
+</head>
+<body x-data x-cloak>
+  <div class="shell">
+    {{ template "sidebar" . }}
+    <div class="main">
+      <header class="topbar">
+        <button class="hamburger" type="button" @click="$store.ui.sidebarOpen = !$store.ui.sidebarOpen" aria-label="Toggle navigation">
+          {{ icon "layers" }}
+        </button>
+        <div class="topbar-title">{{ .Title }}</div>
+        <div class="topbar-spacer"></div>
+        {{ template "node-switcher" . }}
+        {{ template "user-menu" . }}
+      </header>
+      <main class="content" id="main-content">
+        {{ template "content" . }}
+      </main>
+    </div>
+  </div>
+  {{ template "modal-root" . }}
+  {{ template "toast-root" . }}
+</body>
+</html>
+{{ end }}

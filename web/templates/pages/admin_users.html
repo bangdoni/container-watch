@@ -1,0 +1,97 @@
+{{ define "content" }}
+{{ if .Flash }}
+<div class="alert alert-{{ .alertClass }} mb-3">{{ icon "alert" }}<span>{{ .Flash }}</span></div>
+{{ end }}
+
+<div class="flex items-center gap-2 mb-3 flex-wrap">
+  <div>
+    <h1 class="text-xl font-semibold">Users</h1>
+    <p class="text-xs text-disabled mt-1">
+      {{ len .Users }} account{{ if ne (len .Users) 1 }}s{{ end }} · {{ .AdminCount }} administrator{{ if ne .AdminCount 1 }}s{{ end }}
+    </p>
+  </div>
+</div>
+
+<div class="alert alert-info mb-3">
+  {{ icon "shield" }}
+  <span>Users can view dashboards, metrics and logs. Only administrators can start, stop or remove
+  containers, and manage nodes and accounts.</span>
+</div>
+
+<div class="card">
+  {{ if .Users }}
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Role</th>
+          <th class="hide-sm">Created</th>
+          <th class="hide-sm">Last sign-in</th>
+          <th class="col-actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{ range .Users }}
+        <tr>
+          <td>
+            <div class="cell-name">
+              <span class="cell-avatar">{{ initial .Username }}</span>
+              <div style="min-width:0">
+                <div class="font-medium">
+                  {{ .Username }}
+                  {{ if and $.User (eq $.User.ID .ID) }}<span class="pill pill-blue" style="height:16px;font-size:10px">you</span>{{ end }}
+                </div>
+                <span class="cell-sub">{{ default "no email" .Email }}</span>
+              </div>
+            </div>
+          </td>
+          <td>
+            <select class="select input-sm" name="role" style="width:130px" aria-label="Role for {{ .Username }}"
+                    hx-post="/admin/users/{{ .ID }}/role" hx-trigger="change" hx-swap="none"
+                    {{ if and $.User (eq $.User.ID .ID) }}disabled title="You cannot change your own role"{{ end }}>
+              <option value="user" {{ if not .IsAdmin }}selected{{ end }}>Viewer</option>
+              <option value="admin" {{ if .IsAdmin }}selected{{ end }}>Administrator</option>
+            </select>
+          </td>
+          <td class="hide-sm text-xs text-secondary">{{ dateTime .CreatedAt }}</td>
+          <td class="hide-sm text-xs text-secondary">
+            {{ if .LastLoginAt }}{{ timeAgo .LastLoginAt }}{{ else }}<span class="text-disabled">never</span>{{ end }}
+          </td>
+          <td class="col-actions">
+            <div class="flex items-center justify-end gap-1">
+              {{ if and $.User (ne $.User.ID .ID) }}
+              <form hx-post="/admin/users/{{ .ID }}/delete" hx-swap="none"
+                    hx-confirm="Delete the account “{{ .Username }}”? Their sessions end immediately.">
+                <button type="submit" class="btn btn-ghost btn-sm text-red" title="Delete account">{{ icon "trash" }}</button>
+              </form>
+              {{ else }}
+              <span class="text-xs text-disabled">—</span>
+              {{ end }}
+            </div>
+          </td>
+        </tr>
+        {{ end }}
+      </tbody>
+    </table>
+  </div>
+  {{ else }}
+  <div class="empty">
+    {{ icon "users" }}
+    <h3>No accounts</h3>
+    <p>Registration is closed and no users exist yet.</p>
+  </div>
+  {{ end }}
+</div>
+
+<div class="card mt-3">
+  <div class="card-header">{{ icon "user" }} Onboarding</div>
+  <div class="card-body">
+    <p class="text-sm text-secondary">
+      New accounts can be created from the sign-in page when registration is open — toggle that on
+      the <a href="/admin/settings">settings page</a>. They start as read-only viewers and appear
+      here as soon as they sign up.
+    </p>
+  </div>
+</div>
+{{ end }}

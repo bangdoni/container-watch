@@ -1,0 +1,24 @@
+{{ define "content" }}
+<form class="auth-form" method="post" action="/login" autocomplete="on">
+  <input type="hidden" name="_csrf" value="{{ .CSRF }}">
+  <input type="hidden" name="next" value="{{ .Next }}">
+  <div class="field">
+    <label class="label" for="username">Username or email</label>
+    <input class="input" id="username" name="username" type="text" value="{{ .Username }}"
+           autocomplete="username" autofocus required spellcheck="false">
+  </div>
+  <div class="field">
+    <label class="label" for="password">Password</label>
+    <input class="input" id="password" name="password" type="password"
+           autocomplete="current-password" required>
+  </div>
+  <button class="btn btn-primary btn-block" type="submit">{{ icon "login" }} Sign in</button>
+</form>
+<div class="auth-foot">
+  {{ if .RegistrationOpen }}
+  No account? <a href="/signup">Create a read-only account</a>
+  {{ else }}
+  <span class="text-disabled">Registration is closed — ask an administrator for access.</span>
+  {{ end }}
+</div>
+{{ end }}

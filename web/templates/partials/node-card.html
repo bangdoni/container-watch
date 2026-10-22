@@ -1,0 +1,63 @@
+{{/* One node card. Data: nodeCardView. Standalone partial (probe refresh). */}}
+{{ define "node-card" }}
+<div class="card node-card" id="node-{{ .ID }}">
+  <div class="card-header">
+    {{ icon "server" }} {{ .Name }}
+    <span class="spacer"></span>
+    {{ if .Local }}<span class="pill pill-blue" title="Discovered from a local socket">local</span>{{ end }}
+    <span class="pill {{ if .Online }}pill-green{{ else }}pill-red{{ end }}">
+      <span class="pill-dot"></span>{{ if .Online }}online{{ else }}offline{{ end }}
+    </span>
+  </div>
+  <div class="card-body">
+    <div class="kv">
+      <div class="kv-item">
+        <div class="kv-key">Endpoint</div>
+        <div class="kv-val mono text-xs break-all">{{ .Endpoint }}</div>
+      </div>
+      <div class="kv-item">
+        <div class="kv-key">Engine</div>
+        <div class="kv-val">{{ .Engine }}{{ if .Version }} <span class="text-disabled">{{ truncate 24 .Version }}</span>{{ end }}</div>
+      </div>
+      {{ if .Platform }}
+      <div class="kv-item">
+        <div class="kv-key">Platform</div>
+        <div class="kv-val text-xs break-all">{{ .Platform }}</div>
+      </div>
+      {{ end }}
+      {{ if .Online }}
+      <div class="kv-item">
+        <div class="kv-key">Resources</div>
+        <div class="kv-val">{{ .CPUs }} CPU{{ if ne .CPUs 1 }}s{{ end }}{{ if .MemTotal }} · {{ formatBytesIEC .MemTotal }}{{ end }}</div>
+      </div>
+      {{ end }}
+      <div class="kv-item">
+        <div class="kv-key">Checked</div>
+        <div class="kv-val text-xs" title="{{ dateTime .CheckedAt }}">{{ if .CheckedAt.IsZero }}never{{ else }}{{ timeAgo .CheckedAt }}{{ end }}</div>
+      </div>
+    </div>
+
+    {{ if .Error }}
+    <div class="alert alert-error mt-2">{{ icon "alert" }}<span class="break-all">{{ .Error }}</span></div>
+    {{ end }}
+  </div>
+  <div class="card-footer">
+    <button type="button" class="btn btn-ghost btn-sm"
+            hx-post="/admin/nodes/{{ .ID }}/probe" hx-target="#node-{{ .ID }}" hx-swap="outerHTML"
+            hx-indicator="#probe-{{ .ID }}">
+      {{ icon "refresh" }} Test
+      <span class="spinner htmx-indicator" id="probe-{{ .ID }}"></span>
+    </button>
+    <div class="topbar-spacer"></div>
+    <a class="btn btn-ghost btn-sm" href="/containers?node={{ .ID }}">{{ icon "box" }} Containers</a>
+    <button type="button" class="btn btn-ghost btn-sm" title="Edit node"
+            @click="$store.ui.open('node', { url: '/admin/nodes/{{ .ID }}/edit' })">{{ icon "edit" }}</button>
+    {{ if not .Local }}
+    <form hx-post="/admin/nodes/{{ .ID }}/delete" hx-swap="none"
+          hx-confirm="Remove the node “{{ .Name }}”? Containers on it stay untouched; monitoring stops.">
+      <button type="submit" class="btn btn-ghost btn-sm text-red" title="Remove node">{{ icon "trash" }}</button>
+    </form>
+    {{ end }}
+  </div>
+</div>
+{{ end }}
