@@ -345,6 +345,11 @@ type containersView struct {
 	Query      string
 	Filter     string
 	NodeUser   any
+	// NodeError carries the last connection error for the selected node.
+	// The shared "containers-table" partial renders it in the unreachable
+	// state so the operator sees why the engine could not be reached
+	// instead of an empty table that looks like "no containers".
+	NodeError string
 }
 
 // containersPage renders the full container list.
@@ -359,6 +364,7 @@ func (s *Server) containersPage(w http.ResponseWriter, r *http.Request) {
 		vd.Flash = "Cannot reach " + n.Record.Name + ": " + err.Error()
 		vd.FlashKind = "error"
 	}
+	nodeErr := firstNonEmpty(errString(err), n.Status.Error)
 	rows := s.buildRows(n.Record.ID, containers)
 	sortRows(rows)
 	q := r.URL.Query().Get("q")
@@ -373,7 +379,26 @@ func (s *Server) containersPage(w http.ResponseWriter, r *http.Request) {
 		Query:      q,
 		Filter:     defaultStr(r.URL.Query().Get("state"), "all"),
 		NodeUser:   userOf(r),
+		NodeError:  nodeErr,
 	})
+}
+
+// firstNonEmpty returns the first non-blank value, or "" when all are blank.
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// errString returns err.Error() or "" when err is nil.
+func errString(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }
 
 func defaultStr(v, def string) string {
@@ -423,6 +448,15 @@ type tablePartialView struct {
 	// NodeUser is the current user, used by the shared table partial.
 	NodeUser any
 	Compact  bool
+	// NodeOnline mirrors engine.NodeStatus.Online for the selected node.
+	// The template needs it to tell "the engine is up but has no containers"
+	// apart from "the engine is unreachable" — without it every empty list
+	// renders as the former, which is actively misleading when Docker is
+	// down.
+	NodeOnline bool
+	// NodeError carries the last connection error for the node, shown in
+	// the unreachable state so the operator knows what actually failed.
+	NodeError string
 }
 
 // containersTablePartial re-renders the table after an SSE "changed" event or a
@@ -434,9 +468,20 @@ func (s *Server) containersTablePartial(w http.ResponseWriter, r *http.Request) 
 		s.renderPartial(w, r, "containers-table", tablePartialView{})
 		return
 	}
+	// Probe a stale node once so a page opened against a sleeping host
+	// does not immediately render as offline. Same helper the page view
+	// uses, so the header pill and the table agree.
+	n = s.ensureOnline(r, n)
 	cols, err := s.containersFor(r, n)
 	if err != nil {
-		s.renderPartial(w, r, "containers-table", tablePartialView{NodeID: n.Record.ID})
+		// The engine could not be reached. Report that state explicitly
+		// instead of rendering an empty table, which would read as
+		// "reachable but no containers".
+		s.renderPartial(w, r, "containers-table", tablePartialView{
+			NodeID:     n.Record.ID,
+			NodeOnline: n.Status.Online,
+			NodeError:  firstNonEmpty(err.Error(), n.Status.Error),
+		})
 		return
 	}
 	rows := s.buildRows(n.Record.ID, cols)
@@ -454,6 +499,8 @@ func (s *Server) containersTablePartial(w http.ResponseWriter, r *http.Request) 
 		CSRF:       s.auth.EnsureCSRF(w, r),
 		User:       userOf(r),
 		NodeUser:   userOf(r),
+		NodeOnline: n.Status.Online,
+		NodeError:  n.Status.Error,
 	})
 }
 

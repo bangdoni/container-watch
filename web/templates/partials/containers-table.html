@@ -128,6 +128,19 @@
       </tbody>
     </table>
   </div>
+  {{ else if not .NodeOnline }}
+  {{/* The engine could not be reached. This must be checked BEFORE the
+       plain "no containers" case: an unreachable engine also produces an
+       empty list, and telling the operator "the engine is reachable but
+       reports no containers" when Docker is down is actively misleading. */}}
+  <div class="empty">
+    {{ icon "alert" }}
+    <h3>Engine unreachable</h3>
+    <p>Cannot reach the container engine for this node.</p>
+    {{ if .NodeError }}
+    <p class="text-xs text-disabled" style="margin-top:6px;font-family:var(--mono)">{{ .NodeError }}</p>
+    {{ end }}
+  </div>
   {{ else }}
   <div class="empty">
     {{ icon "box" }}

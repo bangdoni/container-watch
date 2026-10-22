@@ -97,6 +97,22 @@ func (v viewData) alertClass() string {
 	}
 }
 
+// AlertClass is the exported form of alertClass.
+//
+// html/template resolves a field or method through reflection, and
+// reflect cannot see unexported methods. The templates call
+// `{{ .alertClass }}`, which therefore failed with
+//
+//	can't evaluate field alertClass in type handlers.viewData
+//
+// and turned every page that sets a Flash into a 500 — precisely the
+// error paths (offline node, image list failure, user list failure)
+// that exist to show a friendly message. Exporting the method keeps
+// the template syntax unchanged and lets the embedded value promote
+// it, because only exported methods are promoted through embedding
+// for the template package.
+func (v viewData) AlertClass() string { return v.alertClass() }
+
 // renderPage executes a page template into a buffer (so template errors do not
 // produce a half-written response) and writes it.
 func (s *Server) renderPage(w http.ResponseWriter, r *http.Request, status int, page, layout string, data any) {

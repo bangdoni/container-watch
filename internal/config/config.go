@@ -133,6 +133,12 @@ func Load() (*Config, error) {
 	if v := os.Getenv("CW_LOCAL_SOCKETS"); v != "" {
 		if v == "none" {
 			c.DisableLocalDiscovery = true
+			// "none" must also clear the built-in socket list. Leaving
+			// the defaults in place meant DisableLocalDiscovery was set
+			// but LocalSockets still named /var/run/docker.sock, so
+			// anything reading the list directly would still try to
+			// reach a local daemon.
+			c.LocalSockets = c.LocalSockets[:0]
 		} else {
 			parts := strings.Split(v, ",")
 			c.LocalSockets = c.LocalSockets[:0]

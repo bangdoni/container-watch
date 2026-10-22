@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  GOTOOLCHAIN: go1.26.0
+
+jobs:
+  test:
+    name: Test (Go ${{ matrix.go }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 1.26.0 is the minimum go.mod declares; 1.27 is what the
+        # Dockerfile's golang:1.27-alpine builder provides. Testing both
+        # catches a regression in either.
+        go: ['1.26.0', '1.27']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Build
+        run: go build -trimpath -o /tmp/containerwatch ./cmd/containerwatch
+
+      - name: Test
+        # -vet=off is deliberate. The `go vet` tool type-checks the whole
+        # import graph, and modernc.org/sqlite/lib is ~1.4M lines of
+        # generated code (sqlite.go alone is 1.3 MB). Veting it needs more
+        # memory than a 2 GB container allows and the process is killed by
+        # the kernel -- the same vet run succeeds on a standard CI runner
+        # with 7 GB. The separate `vet` job below covers our own code.
+        # -race needs the race runtime, which needs memory; GitHub's
+        # ubuntu-latest runner has 7 GB, more than enough.
+        run: go test -vet=off -race -timeout 5m ./...
+
+  vet:
+    name: Vet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.27'
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Vet
+        # Vet runs with a raised memory ceiling. On a 7 GB runner the
+        # default is enough; the limit is set explicitly so the job does
+        # not start getting OOM-killed when the runner image changes.
+        env:
+          GOMEMLIMIT: 4GiB
+        run: go vet ./...
+
+  build-image:
+    name: Build container image
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the static binary
+        run: |
+          docker build \
+            --build-arg VERSION="${GITHUB_REF_NAME}" \
+            --build-arg COMMIT="${GITHUB_SHA}" \
+            --build-arg BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -t containerwatch:ci .
+
+      - name: Smoke-test the image
+        run: |
+          docker run -d --name cw -p 8080:8080 containerwatch:ci
+          for i in $(seq 1 30); do
+            # The image installs the binary at /usr/local/bin/containerwatch
+            # and its own HEALTHCHECK uses the same path.
+            if docker exec cw /usr/local/bin/containerwatch -healthcheck >/dev/null 2>&1; then
+              echo "healthcheck passed"
+              docker rm -f cw
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "healthcheck never passed"
+          docker logs cw || true
+          docker rm -f cw
+          exit 1
