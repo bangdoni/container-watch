@@ -507,10 +507,75 @@ func TestDashboardRenders(t *testing.T) {
 func TestHealthz(t *testing.T) {
 	e := newEnv(t)
 	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	// A local probe - the container HEALTHCHECK and the -healthcheck flag
+	// both arrive this way.
+	req.RemoteAddr = "127.0.0.1:54321"
 	rec := httptest.NewRecorder()
 	e.routes.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Errorf("status = %d, want 200", rec.Code)
+	}
+}
+
+// TestHealthzIsNotPublicByDefault checks that /healthz does not answer
+// callers from off the machine. It reports the version and the node counts,
+// so it must not be readable by an unauthenticated visitor.
+func TestHealthzIsNotPublicByDefault(t *testing.T) {
+	e := newEnv(t)
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req.RemoteAddr = "203.0.113.7:54321"
+	rec := httptest.NewRecorder()
+	e.routes.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want 404 for a remote caller", rec.Code)
+	}
+	if body := rec.Body.String(); strings.Contains(body, "version") {
+		t.Errorf("the response leaked details: %s", body)
+	}
+}
+
+// TestHealthzPublicWhenEnabled checks that an operator can opt back in, for
+// example when an external uptime monitor needs to reach the probe.
+func TestHealthzPublicWhenEnabled(t *testing.T) {
+	e := newEnv(t)
+	e.srv.SetPublicHealthcheck(true)
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req.RemoteAddr = "203.0.113.7:54321"
+	rec := httptest.NewRecorder()
+	e.routes.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Errorf("status = %d, want 200 when the probe is public", rec.Code)
+	}
+}
+
+// TestHealthzBehindTrustedProxy checks the reverse-proxy case: every request
+// arrives from 127.0.0.1, so the forwarded client address has to decide.
+// With a trusted proxy the remote caller is refused.
+func TestHealthzBehindTrustedProxy(t *testing.T) {
+	e := newEnv(t)
+	e.srv.SetTrustProxy(true)
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req.RemoteAddr = "127.0.0.1:54321" // the proxy, on this host
+	req.Header.Set("X-Forwarded-For", "203.0.113.7")
+	rec := httptest.NewRecorder()
+	e.routes.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want 404 for a remote client behind a trusted proxy", rec.Code)
+	}
+}
+
+// TestHealthzIgnoresForwardedHeaderWithoutTrustedProxy checks that a caller
+// cannot claim to be local by sending X-Forwarded-For when no proxy is
+// trusted.
+func TestHealthzIgnoresForwardedHeaderWithoutTrustedProxy(t *testing.T) {
+	e := newEnv(t)
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req.RemoteAddr = "203.0.113.7:54321"
+	req.Header.Set("X-Forwarded-For", "127.0.0.1")
+	rec := httptest.NewRecorder()
+	e.routes.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want 404: the forwarded header must be ignored", rec.Code)
 	}
 }
 

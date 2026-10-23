@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"io/fs"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -98,7 +99,20 @@ func (s *Server) recoverer(next http.Handler) http.Handler {
 // healthz is the liveness/readiness probe. It verifies the database is
 // readable and reports how many nodes are online, without touching the engines
 // (which may be slow or unreachable).
+//
+// The response reveals the version and the node counts, so by default it only
+// answers callers on this machine. Container probes (Docker HEALTHCHECK, the
+// -healthcheck flag) run inside the container and qualify; an unauthenticated
+// visitor on the network does not. Set CW_PUBLIC_HEALTHCHECK=true to serve
+// everyone, for example when an external uptime monitor needs to reach it.
 func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {
+	if !s.cfg.PublicHealthcheck && !s.isLocalRequest(r) {
+		// 404 rather than 403: a "no such endpoint" answer does not confirm
+		// that the probe exists.
+		http.NotFound(w, r)
+		return
+	}
+
 	status := http.StatusOK
 	body := map[string]any{
 		"status":  "ok",
@@ -126,6 +140,74 @@ func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(status)
 	writeJSON(w, body)
 }
+
+// isLocalRequest reports whether the request came from this machine.
+//
+// The client address is taken from X-Forwarded-For only when the operator has
+// declared a trusted proxy (CW_TRUST_PROXY). That matters behind a reverse
+// proxy on the same host: every request then arrives from 127.0.0.1, so
+// looking at the peer address alone would let the whole internet read the
+// probe. When the proxy is trusted, the forwarded address is the client.
+//
+// Without a trusted proxy the header is ignored entirely - a caller could
+// otherwise claim to be 127.0.0.1 and read the version and node counts.
+//
+// A peer is local when it is a loopback address, or when it is one of this
+// host's own addresses - the latter covers a self-probe that targets a
+// specific interface rather than 127.0.0.1 (CW_ADDR=10.0.0.5:8080).
+func (s *Server) isLocalRequest(r *http.Request) bool {
+	return isLocalAddr(s.clientAddr(r))
+}
+
+// clientAddr resolves the address of the caller, honouring the forwarded
+// header only when a proxy is trusted.
+func (s *Server) clientAddr(r *http.Request) string {
+	if s.cfg.TrustProxy {
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			if i := strings.IndexByte(xff, ','); i > 0 {
+				return strings.TrimSpace(xff[:i])
+			}
+			return strings.TrimSpace(xff)
+		}
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
+}
+
+// isLocalAddr reports whether addr belongs to this machine.
+func isLocalAddr(addr string) bool {
+	ip := net.ParseIP(strings.TrimSpace(addr))
+	if ip == nil {
+		return false
+	}
+	if ip.IsLoopback() {
+		return true
+	}
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return false
+	}
+	for _, a := range addrs {
+		n, ok := a.(*net.IPNet)
+		if ok && n.IP.Equal(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// SetPublicHealthcheck turns the /healthz probe on or off for callers that
+// are not on this machine. It exists so the behaviour can be exercised from
+// tests; at runtime the setting comes from CW_PUBLIC_HEALTHCHECK.
+func (s *Server) SetPublicHealthcheck(v bool) { s.cfg.PublicHealthcheck = v }
+
+// SetTrustProxy toggles whether forwarded client headers are believed. It
+// exists so the behaviour can be exercised from tests; at runtime the setting
+// comes from CW_TRUST_PROXY.
+func (s *Server) SetTrustProxy(v bool) { s.cfg.TrustProxy = v }
 
 // Version exposes the build version for health output.
 func (s *Server) Version() string {

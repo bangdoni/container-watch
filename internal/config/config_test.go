@@ -17,7 +17,7 @@ func clearEnv(t *testing.T) {
 		"CW_ADDR", "CW_DATA_DIR", "CW_DATABASE_PATH", "CW_PUBLIC_URL",
 		"CW_SESSION_TTL", "CW_METRICS_INTERVAL", "CW_METRICS_WINDOW",
 		"CW_SECURE_COOKIES", "CW_TRUST_PROXY", "CW_LOCAL_SOCKETS",
-		"CW_LOG_LEVEL",
+		"CW_LOG_LEVEL", "CW_PUBLIC_HEALTHCHECK",
 	} {
 		t.Setenv(k, "")
 	}
@@ -199,5 +199,39 @@ func TestLoadRejectsBadLogLevel(t *testing.T) {
 	t.Setenv("CW_LOG_LEVEL", "verbose")
 	if _, err := config.Load(); err == nil {
 		t.Error("Load accepted CW_LOG_LEVEL=verbose")
+	}
+}
+
+// TestPublicHealthcheckDefaultsToLocal checks that /healthz is not exposed to
+// remote callers unless the operator opts in.
+func TestPublicHealthcheckDefaultsToLocal(t *testing.T) {
+	clearEnv(t)
+	t.Setenv("CW_DATA_DIR", t.TempDir())
+	c, err := config.Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if c.PublicHealthcheck {
+		t.Error("PublicHealthcheck is true by default; the probe should be local-only")
+	}
+}
+
+// TestPublicHealthcheckReadsEnvironment checks the variable mapping and that
+// a malformed value is rejected rather than silently ignored.
+func TestPublicHealthcheckReadsEnvironment(t *testing.T) {
+	clearEnv(t)
+	t.Setenv("CW_DATA_DIR", t.TempDir())
+	t.Setenv("CW_PUBLIC_HEALTHCHECK", "true")
+	c, err := config.Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !c.PublicHealthcheck {
+		t.Error("PublicHealthcheck = false, want true")
+	}
+
+	t.Setenv("CW_PUBLIC_HEALTHCHECK", "not-a-bool")
+	if _, err := config.Load(); err == nil {
+		t.Error("a malformed CW_PUBLIC_HEALTHCHECK was accepted")
 	}
 }

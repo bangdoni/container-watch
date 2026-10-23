@@ -48,6 +48,10 @@ type Config struct {
 	MetricsWindow int
 	// DisableLocalDiscovery skips probing local sockets entirely.
 	DisableLocalDiscovery bool
+	// PublicHealthcheck exposes /healthz to callers that are not on the local
+	// machine. By default the probe answers loopback requests only, so an
+	// unauthenticated visitor cannot read the version and node counts.
+	PublicHealthcheck bool
 	// LogLevel is the slog level to use.
 	LogLevel slog.Level
 	// RegistrationOpen is the initial value for the "public registration"
@@ -129,6 +133,13 @@ func Load() (*Config, error) {
 			return nil, fmt.Errorf("CW_TRUST_PROXY: %w", err)
 		}
 		c.TrustProxy = b
+	}
+	if v := os.Getenv("CW_PUBLIC_HEALTHCHECK"); v != "" {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return nil, fmt.Errorf("CW_PUBLIC_HEALTHCHECK: %w", err)
+		}
+		c.PublicHealthcheck = b
 	}
 	if v := os.Getenv("CW_LOCAL_SOCKETS"); v != "" {
 		if v == "none" {

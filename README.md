@@ -167,6 +167,7 @@ All configuration is via environment variables; see
 | `CW_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 | `CW_OPEN_REGISTRATION` | `false` | Initial registration setting |
 | `CW_HEALTHCHECK_URL` | *(derived)* | Target of `-healthcheck` |
+| `CW_PUBLIC_HEALTHCHECK` | `false` | Serve `/healthz` to callers off this machine |
 
 ## Remote nodes
 
@@ -189,6 +190,12 @@ containerwatch -healthcheck  # probe /healthz and exit (used by HEALTHCHECK)
 
 `GET /healthz` returns JSON with uptime, version, node counts and a database
 ping; it answers `503` when the database is unavailable.
+
+The probe is **local-only by default**: it answers requests from this machine
+(the Docker `HEALTHCHECK` and `containerwatch -healthcheck` both qualify) and
+returns `404` to anyone else, so an unauthenticated visitor cannot read the
+version and node counts. Set `CW_PUBLIC_HEALTHCHECK=true` to expose it, for
+example when an external uptime monitor has to reach it.
 
 ## Development
 
