@@ -1,8 +1,8 @@
 # ContainerWatch
 
 Real-time, self-hosted monitoring for Docker and Podman containers — a dense,
-Grafana-inspired dashboard with live metrics, streaming logs and multi-node
-support, shipped as a single static binary.
+dark dashboard with live metrics, streaming logs and multi-node support,
+shipped as a single static binary.
 
 ![Go](https://img.shields.io/badge/Go-1.26%2B-00ADD8?logo=go&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-6e9fff)

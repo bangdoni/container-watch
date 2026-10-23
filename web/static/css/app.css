@@ -1,5 +1,5 @@
 /* ==========================================================================
-   ContainerWatch — Grafana-inspired dark theme
+   ContainerWatch dark theme
    Hand-authored utility + component CSS (no build step required).
    ========================================================================== */
 
@@ -31,38 +31,41 @@
 
 /* ---------- Design tokens ---------- */
 :root {
-  /* Surfaces — Grafana's neutral ramp */
-  --bg-canvas: #111217;
-  --bg-primary: #181b1f;
-  --bg-secondary: #22252b;
-  --bg-elevated: #2a2d34;
-  --bg-hover: #2f323a;
-  --border-weak: #2c3036;
-  --border-medium: #3d4249;
-  --border-strong: #565b66;
+  /* Surfaces — a cool neutral ramp, dark to light.
+     Every text and status colour below clears WCAG AA (4.5:1) against the
+     surface it is used on; the dim variants composite to at least 1.3:1
+     against --bg-primary so an alert background still reads as coloured. */
+  --bg-canvas: #0e1013;
+  --bg-primary: #15181d;
+  --bg-secondary: #1c2027;
+  --bg-elevated: #232830;
+  --bg-hover: #2a3038;
+  --border-weak: #272c34;
+  --border-medium: #363c46;
+  --border-strong: #4a525e;
 
   /* Text */
-  --text-primary: #d8d9da;
-  --text-secondary: #9fa7b3;
-  --text-disabled: #6b7280;
-  --text-link: #6e9fff;
+  --text-primary: #e2e5e9;
+  --text-secondary: #a3adba;
+  --text-disabled: #8a939e;
+  --text-link: #7aa5f0;
 
-  /* Semantic — Grafana palette */
-  --green: #73bf69;
-  --green-dim: rgba(115, 191, 105, 0.16);
-  --yellow: #fade2a;
-  --yellow-dim: rgba(250, 222, 42, 0.14);
-  --orange: #ff9830;
-  --red: #f2495c;
-  --red-dim: rgba(242, 73, 92, 0.15);
-  --blue: #5794f2;
-  --blue-dim: rgba(87, 148, 242, 0.15);
-  --purple: #b877d9;
-  --purple-dim: rgba(184, 119, 217, 0.15);
+  /* Semantic status */
+  --green: #5cbb6e;
+  --green-dim: rgba(92, 187, 110, 0.20);
+  --yellow: #f2c94c;
+  --yellow-dim: rgba(242, 201, 76, 0.18);
+  --orange: #f2994a;
+  --red: #eb5f6d;
+  --red-dim: rgba(235, 95, 109, 0.20);
+  --blue: #4d8fe6;
+  --blue-dim: rgba(77, 143, 230, 0.20);
+  --purple: #b085dc;
+  --purple-dim: rgba(176, 133, 220, 0.20);
 
   /* Accent */
-  --accent: #6e9fff;
-  --accent-hover: #8ab2ff;
+  --accent: #7aa5f0;
+  --accent-hover: #96b8f5;
 
   /* Shape */
   --radius-sm: 3px;
@@ -280,7 +283,7 @@ table {
   align-items: center;
   gap: 12px;
   padding: 0 16px;
-  background: rgba(24, 27, 31, 0.86);
+  background: rgba(21, 24, 29,  0.86));
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border-weak);
 }
@@ -395,20 +398,20 @@ table {
 }
 .btn-danger {
   background: var(--red-dim);
-  border-color: rgba(242, 73, 92, 0.4);
+  border-color: rgba(235, 95, 109,  0.4));
   color: #ff7b8a;
 }
 .btn-danger:hover {
-  background: rgba(242, 73, 92, 0.26);
+  background: rgba(235, 95, 109,  0.26));
   border-color: var(--red);
 }
 .btn-success {
   background: var(--green-dim);
-  border-color: rgba(115, 191, 105, 0.4);
+  border-color: rgba(92, 187, 110,  0.4));
   color: var(--green);
 }
 .btn-success:hover {
-  background: rgba(115, 191, 105, 0.26);
+  background: rgba(92, 187, 110,  0.26));
   border-color: var(--green);
 }
 .btn-ghost {
@@ -468,7 +471,7 @@ table {
 .select:focus,
 .textarea:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(110, 159, 255, 0.18);
+  box-shadow: 0 0 0 2px rgba(122, 165, 240,  0.18));
 }
 .input-sm {
   height: 26px;
@@ -540,37 +543,37 @@ table {
 .pill-green {
   background: var(--green-dim);
   color: var(--green);
-  border-color: rgba(115, 191, 105, 0.3);
+  border-color: rgba(92, 187, 110,  0.3));
 }
 .pill-yellow {
   background: var(--yellow-dim);
   color: var(--yellow);
-  border-color: rgba(250, 222, 42, 0.28);
+  border-color: rgba(242, 201, 76,  0.28));
 }
 .pill-red {
   background: var(--red-dim);
   color: #ff7b8a;
-  border-color: rgba(242, 73, 92, 0.3);
+  border-color: rgba(235, 95, 109,  0.3));
 }
 .pill-blue {
   background: var(--blue-dim);
   color: var(--blue);
-  border-color: rgba(87, 148, 242, 0.3);
+  border-color: rgba(77, 143, 230,  0.3));
 }
 .pill-purple {
   background: var(--purple-dim);
   color: var(--purple);
-  border-color: rgba(184, 119, 217, 0.3);
+  border-color: rgba(176, 133, 220,  0.3));
 }
 .pill-gray {
-  background: rgba(159, 167, 179, 0.12);
+  background: rgba(163, 173, 186,  0.12));
   color: var(--text-secondary);
-  border-color: rgba(159, 167, 179, 0.22);
+  border-color: rgba(163, 173, 186,  0.22));
 }
 .pill-orange {
-  background: rgba(255, 152, 48, 0.14);
+  background: rgba(242, 153, 74,  0.14));
   color: var(--orange);
-  border-color: rgba(255, 152, 48, 0.3);
+  border-color: rgba(242, 153, 74,  0.3));
 }
 
 .tag {
@@ -605,23 +608,23 @@ table {
   height: 7px;
   border-radius: 50%;
   background: var(--green);
-  box-shadow: 0 0 0 0 rgba(115, 191, 105, 0.7);
+  box-shadow: 0 0 0 0 rgba(92, 187, 110,  0.7));
   animation: pulse 2s infinite;
   flex: none;
 }
 .pulse-dot.pulse-blue {
   background: var(--blue);
-  box-shadow: 0 0 0 0 rgba(87, 148, 242, 0.7);
+  box-shadow: 0 0 0 0 rgba(77, 143, 230,  0.7));
 }
 @keyframes pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(115, 191, 105, 0.55);
+    box-shadow: 0 0 0 0 rgba(92, 187, 110,  0.55));
   }
   70% {
-    box-shadow: 0 0 0 6px rgba(115, 191, 105, 0);
+    box-shadow: 0 0 0 6px rgba(92, 187, 110,  0));
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(115, 191, 105, 0);
+    box-shadow: 0 0 0 0 rgba(92, 187, 110,  0));
   }
 }
 .pulse-dot.pulse-blue {
@@ -629,13 +632,13 @@ table {
 }
 @keyframes pulse-blue {
   0% {
-    box-shadow: 0 0 0 0 rgba(87, 148, 242, 0.55);
+    box-shadow: 0 0 0 0 rgba(77, 143, 230,  0.55));
   }
   70% {
-    box-shadow: 0 0 0 6px rgba(87, 148, 242, 0);
+    box-shadow: 0 0 0 6px rgba(77, 143, 230,  0));
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(87, 148, 242, 0);
+    box-shadow: 0 0 0 0 rgba(77, 143, 230,  0));
   }
 }
 
@@ -1133,7 +1136,7 @@ tr:hover .id-tag svg {
 }
 .log-line .ts {
   flex: none;
-  color: #6b7280;
+  color: var(--text-disabled);
 }
 .log-line .msg {
   color: #c9d1d9;
@@ -1143,11 +1146,11 @@ tr:hover .id-tag svg {
   color: #ff9aa6;
 }
 .log-line.hit {
-  background: rgba(250, 222, 42, 0.09);
-  box-shadow: inset 2px 0 0 rgba(250, 222, 42, 0.6);
+  background: rgba(242, 201, 76,  0.09));
+  box-shadow: inset 2px 0 0 rgba(242, 201, 76,  0.6));
 }
 .log-line mark {
-  background: rgba(250, 222, 42, 0.32);
+  background: rgba(242, 201, 76,  0.32));
   color: #fff;
   border-radius: 2px;
   padding: 0 1px;
@@ -1308,7 +1311,7 @@ tr:hover .id-tag svg {
   padding: 24px;
   background:
     radial-gradient(900px 500px at 15% -10%, rgba(247, 147, 42, 0.09), transparent 60%),
-    radial-gradient(800px 500px at 100% 110%, rgba(110, 159, 255, 0.07), transparent 60%),
+    radial-gradient(800px 500px at 100% 110%, rgba(122, 165, 240,  0.07)), transparent 60%),
     var(--bg-canvas);
 }
 .auth-card {
@@ -1367,22 +1370,22 @@ tr:hover .id-tag svg {
 }
 .alert-error {
   background: var(--red-dim);
-  border-color: rgba(242, 73, 92, 0.3);
+  border-color: rgba(235, 95, 109,  0.3));
   color: #ff9aa6;
 }
 .alert-success {
   background: var(--green-dim);
-  border-color: rgba(115, 191, 105, 0.3);
+  border-color: rgba(92, 187, 110,  0.3));
   color: #9ee198;
 }
 .alert-warn {
   background: var(--yellow-dim);
-  border-color: rgba(250, 222, 42, 0.28);
+  border-color: rgba(242, 201, 76,  0.28));
   color: #f7e77a;
 }
 .alert-info {
   background: var(--blue-dim);
-  border-color: rgba(87, 148, 242, 0.3);
+  border-color: rgba(77, 143, 230,  0.3));
   color: #9dc0fb;
 }
 
@@ -1437,10 +1440,10 @@ tr:hover .id-tag svg {
   animation: toast-in 0.16s ease-out;
 }
 .toast.error {
-  border-color: rgba(242, 73, 92, 0.5);
+  border-color: rgba(235, 95, 109,  0.5));
 }
 .toast.success {
-  border-color: rgba(115, 191, 105, 0.45);
+  border-color: rgba(92, 187, 110,  0.45));
 }
 @keyframes toast-in {
   from {

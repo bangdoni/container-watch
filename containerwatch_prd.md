@@ -11,7 +11,7 @@
 
 **ContainerWatch** is a lightweight, self-hosted, real-time container monitoring application built for Docker and Podman environments. It provides deep observability—including real-time resource utilization, container lifecycles, and streamable logs—across single or distributed nodes (VPS, edge devices, local workstations).
 
-Designed with a high-density, dark-mode aesthetic inspired by **Grafana**, ContainerWatch utilizes a **Golang backend** and an **htmx-driven frontend** to deliver a responsive, Single Page Application (SPA)-like experience with minimal system footprint (<30 MB RAM) and zero heavy JS bundler overhead.
+Designed with a high-density, dark-mode aesthetic of its own, ContainerWatch utilizes a **Golang backend** and an **htmx-driven frontend** to deliver a responsive, Single Page Application (SPA)-like experience with minimal system footprint (<30 MB RAM) and zero heavy JS bundler overhead.
 
 ---
 
@@ -19,7 +19,7 @@ Designed with a high-density, dark-mode aesthetic inspired by **Grafana**, Conta
 
 1. **Ultra-Low Resource Footprint**: Run comfortably on single-core 512MB RAM VPS instances alongside workloads.
 2. **Dual Engine Support**: Seamlessly interface with both Docker (`/var/run/docker.sock`) and Podman (`/run/podman/podman.sock` or REST API) sockets.
-3. **Grafana-Inspired Aesthetics**: Offer a high-density, dark UI optimized for system administrators, developers, and homelab users.
+3. **High-Density Aesthetics**: Offer a compact, dark UI optimized for system administrators, developers, and homelab users.
 4. **Instant Setup**: Deploy via a single binary (`CGO_ENABLED=0`) or a lightweight Docker container (~15MB).
 5. **Secure Access Control**: Protect management capabilities with Role-Based Access Control (RBAC) separating regular viewers (`User`) from host operators (`Admin`).
 
@@ -70,7 +70,7 @@ Designed with a high-density, dark-mode aesthetic inspired by **Grafana**, Conta
 
 ---
 
-### 4.3 Grafana-Inspired UI & Dashboard Views
+### 4.3 UI & Dashboard Views
 
 #### A. Main System Summary Bar
 - Real-time overall host CPU utilization gauge.
@@ -108,16 +108,19 @@ Designed with a high-density, dark-mode aesthetic inspired by **Grafana**, Conta
 
 ## 5. UI & Design Guidelines
 
-- **Color Palette (Grafana Dark Aesthetic)**:
-  - Primary Background: `#111217` (Dark Charcoal)
-  - Secondary Panel/Card: `#181b1f`
-  - Border Highlights: `#2c323b`
-  - Text Primary: `#d8d9da`
-  - Text Muted: `#8e8e8e`
+- **Color Palette** (the shipped tokens in `web/static/css/app.css`; every
+  text and status colour clears WCAG AA against the surface it sits on):
+  - Canvas: `#0e1013`
+  - Panel/Card: `#15181d`
+  - Elevated surface: `#232830`
+  - Border: `#363c46`
+  - Text Primary: `#e2e5e9`
+  - Text Muted: `#a3adba`
   - Status Colors:
-    - Success/Running: `#10b981` (Emerald Green)
-    - Warning/Paused: `#f59e0b` (Amber)
-    - Danger/Stopped: `#ef4444` (Crimson)
+    - Success/Running: `#5cbb6e`
+    - Warning/Paused: `#f2c94c`
+    - Danger/Stopped: `#eb5f6d`
+    - Info: `#4d8fe6`
     - Primary Accent: `#38bdf8` (Cyan Blue)
 - **Density**: Tight table layouts (`py-1.5 px-3`) maximizing information per pixel without visual clutter.
 
@@ -180,4 +183,4 @@ Designed with a high-density, dark-mode aesthetic inspired by **Grafana**, Conta
   - Terminal log streaming viewer with search filter.
 - **Phase 4 (Multi-Host & Polish)**:
   - Remote TCP host configuration.
-  - UI visual polish matching Grafana dark mode guidelines.
+  - UI visual polish consistent with the ContainerWatch dark theme.

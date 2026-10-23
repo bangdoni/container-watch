@@ -266,7 +266,7 @@ func FormatRate(v float64) string {
 	return FormatBytesIEC(int64(v)) + "/s"
 }
 
-// CPUColor maps a CPU percentage to a Grafana-style threshold colour.
+// CPUColor maps a CPU percentage to a threshold colour class.
 func CPUColor(p float64) string {
 	switch {
 	case p >= 90:
@@ -278,7 +278,7 @@ func CPUColor(p float64) string {
 	}
 }
 
-// MemColor maps a memory percentage to a Grafana-style threshold colour.
+// MemColor maps a memory percentage to a threshold colour class.
 func MemColor(p float64) string {
 	switch {
 	case p >= 90:

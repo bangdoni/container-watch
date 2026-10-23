@@ -70,9 +70,9 @@
       t.className = "toast " + (kind || "");
       const icon =
         kind === "error"
-          ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f2495c" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="16.5" x2="12.01" y2="16.5"/></svg>'
+          ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#eb5f6d" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="16.5" x2="12.01" y2="16.5"/></svg>'
           : kind === "success"
-            ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#73bf69" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="16 9 11 15 8 12"/></svg>'
+            ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5cbb6e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="16 9 11 15 8 12"/></svg>'
             : "";
       t.innerHTML = icon + '<div class="flex-1">' + esc(message) + "</div>";
       el.appendChild(t);
@@ -292,24 +292,24 @@
 
   function colorFor(pct, kind) {
     if (kind === "mem") {
-      if (pct >= 90) return "#f2495c";
-      if (pct >= 75) return "#ff9830";
-      return "#5794f2";
+      if (pct >= 90) return "#eb5f6d";
+      if (pct >= 75) return "#f2994a";
+      return "#4d8fe6";
     }
-    if (pct >= 90) return "#f2495c";
-    if (pct >= 70) return "#fade2a";
-    return "#73bf69";
+    if (pct >= 90) return "#eb5f6d";
+    if (pct >= 70) return "#f2c94c";
+    return "#5cbb6e";
   }
 
   function fillFor(color) {
     const map = {
-      "#f2495c": "rgba(242,73,92,.28)",
-      "#ff9830": "rgba(255,152,48,.28)",
-      "#fade2a": "rgba(250,222,42,.24)",
-      "#73bf69": "rgba(115,191,105,.24)",
-      "#5794f2": "rgba(87,148,242,.26)",
+      "#eb5f6d": "rgba(235,95,109,.28)",
+      "#f2994a": "rgba(242,153,74,.28)",
+      "#f2c94c": "rgba(242,201,76,.24)",
+      "#5cbb6e": "rgba(92,187,110,.24)",
+      "#4d8fe6": "rgba(77,143,230,.26)",
     };
-    return map[color] || "rgba(110,159,255,.2)";
+    return map[color] || "rgba(122,165,240,.2)";
   }
 
   // Sparkline elements declare data-spark="cpu|mem|io" and data-id="<container>".
@@ -459,7 +459,7 @@
       fmt = (v) => fmtPct(v);
     }
     const color =
-      kind === "cpu" ? "#73bf69" : kind === "mem" ? "#5794f2" : kind === "blk" ? "#ff9830" : "#b877d9";
+      kind === "cpu" ? "#5cbb6e" : kind === "mem" ? "#4d8fe6" : kind === "blk" ? "#f2994a" : "#b085dc";
     const n = values.length;
     const padTop = 4;
     const plotH = H - padTop - 2;
