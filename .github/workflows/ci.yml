@@ -48,6 +48,27 @@ jobs:
         # ubuntu-latest runner has 7 GB, more than enough.
         run: go test -vet=off -race -timeout 5m ./...
 
+  license:
+    name: License
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.27'
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Check the license gate
+        # Fails if the LICENSE file goes missing, if a copyleft dependency
+        # sneaks into the runtime graph, or if a vendored browser asset or
+        # font is shipped without its notice.
+        run: bash scripts/check-license.sh
+
   vet:
     name: Vet
     runs-on: ubuntu-latest
