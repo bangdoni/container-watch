@@ -248,7 +248,15 @@ web/templates/{layouts,pages,partials}
   the `admin` role server-side, not just hidden in the template.
 
 Deploy behind TLS (a reverse proxy is fine) and set `CW_TRUST_PROXY=true` so the
-`Secure` cookie and rate-limit keys use the real client address.
+`Secure` cookie and rate-limit keys use the real client address. Two things to
+get right at the proxy:
+
+- **Set `CW_TRUST_PROXY=true` only when a proxy is actually in front.** Without
+  it, cookies served over HTTPS lack the `Secure` flag. With it set on a
+  *directly exposed* server, callers can forge `X-Forwarded-For` and rotate
+  fake addresses to sidestep the login rate limit.
+- **Strip or overwrite `X-Forwarded-*` on the proxy** so clients cannot inject
+  their own; nginx/Caddy set these itself for `proxy_pass`/`reverse_proxy`.
 
 ## License
 

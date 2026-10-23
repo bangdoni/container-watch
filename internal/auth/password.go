@@ -108,8 +108,13 @@ func HashToken(token string) string {
 }
 
 // RandomID returns a short random hex identifier (used for CSRF tokens).
+// It panics if the system CSPRNG fails, matching the treatment of session
+// tokens: silently returning zeros would mint predictable tokens with no
+// signal that anything is wrong.
 func RandomID(n int) string {
 	buf := make([]byte, n)
-	_, _ = rand.Read(buf)
+	if _, err := rand.Read(buf); err != nil {
+		panic("auth: crypto/rand unavailable: " + err.Error())
+	}
 	return hex.EncodeToString(buf)
 }
