@@ -193,16 +193,17 @@ table {
 .brand:hover {
   text-decoration: none;
 }
+/* Brand tile: the CW mark on the app's blue accent. */
 .brand-mark {
   width: 22px;
   height: 22px;
   flex: none;
   border-radius: 5px;
-  background: linear-gradient(135deg, #f7932a 0%, #e84e0f 100%);
+  background: linear-gradient(135deg, #8fb4f5 0%, #4a7fd4 100%);
   display: grid;
   place-items: center;
   color: #fff;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 2px 8px rgba(247, 147, 42, 0.35);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 2px 8px rgba(74, 127, 212, 0.35);
 }
 .brand-mark svg {
   width: 13px;
@@ -250,7 +251,7 @@ table {
   bottom: 6px;
   width: 2px;
   border-radius: 0 2px 2px 0;
-  background: linear-gradient(180deg, #f7932a, #e84e0f);
+  background: linear-gradient(180deg, #8fb4f5, #4a7fd4);
 }
 .nav-link svg {
   opacity: 0.85;

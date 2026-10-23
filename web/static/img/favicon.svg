@@ -1,14 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img">
+  <title>ContainerWatch</title>
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#f7932a"/>
-      <stop offset="1" stop-color="#e84e0f"/>
+    <linearGradient id="cw" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8fb4f5"/>
+      <stop offset="1" stop-color="#4a7fd4"/>
     </linearGradient>
   </defs>
-  <rect width="32" height="32" rx="7" fill="url(#g)"/>
-  <g fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M16 6.5l8 4.5-8 4.5-8-4.5z"/>
-    <path d="M8 11v9l8 4.5 8-4.5v-9"/>
-    <path d="M16 15.5V24"/>
+  <rect width="32" height="32" rx="7" fill="url(#cw)"/>
+  <g transform="translate(2.5600 2.5600) scale(0.10500)">
+    <g fill="none" stroke="#fff" stroke-width="40" stroke-linecap="butt">
+      <path d="M168 66.2A80 80 0 1 0 168 189.8"/>
+    </g>
+    <path fill="#fff" d="M96 92h34l30 30 30-30h34l-42 60h-32zM138 152h34l-34 52h-34z"/>
   </g>
 </svg>

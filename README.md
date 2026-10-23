@@ -4,6 +4,12 @@ Real-time, self-hosted monitoring for Docker and Podman containers — a dense,
 dark dashboard with live metrics, streaming logs and multi-node support,
 shipped as a single static binary.
 
+<p align="center">
+  <img src="web/static/img/favicon.svg" width="72" height="72" alt="ContainerWatch">
+  <br>
+  <sub>ContainerWatch</sub>
+</p>
+
 ![Go](https://img.shields.io/badge/Go-1.26%2B-00ADD8?logo=go&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-6e9fff)
 

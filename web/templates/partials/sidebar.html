@@ -2,7 +2,9 @@
 {{ define "sidebar" }}
 <aside class="sidebar" :class="{ 'open': $store.ui.sidebarOpen }">
   <a class="brand" href="/">
-    <span class="brand-mark">{{ icon "box" }}</span>
+    <span class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 256 256" fill="none"><g fill="none" stroke="currentColor" stroke-width="40" stroke-linecap="butt"><path d="M168 66.2A80 80 0 1 0 168 189.8"/></g><path fill="currentColor" d="M96 92h34l30 30 30-30h34l-42 60h-32zM138 152h34l-34 52h-34z"/></svg>
+    </span>
     <span>ContainerWatch</span>
   </a>
   <nav class="nav">
