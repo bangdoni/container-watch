@@ -286,6 +286,9 @@ type dashboardView struct {
 // dashboardPage renders the summary bar plus the live container table.
 func (s *Server) dashboardPage(w http.ResponseWriter, r *http.Request) {
 	vd, n, ok := s.page(w, r, "dashboard", "Dashboard")
+	if vd.Redirected {
+		return
+	}
 	if !ok || n == nil {
 		s.renderPage(w, r, http.StatusOK, "dashboard", "layout", dashboardView{
 			viewData:  vd,
@@ -350,6 +353,9 @@ type containersView struct {
 // containersPage renders the full container list.
 func (s *Server) containersPage(w http.ResponseWriter, r *http.Request) {
 	vd, n, ok := s.page(w, r, "containers", "Containers")
+	if vd.Redirected {
+		return
+	}
 	if !ok || n == nil {
 		s.renderPage(w, r, http.StatusOK, "containers", "layout", containersView{viewData: vd})
 		return
@@ -461,7 +467,17 @@ func (s *Server) containersTablePartial(w http.ResponseWriter, r *http.Request) 
 	noStore(w)
 	n, ok := s.nodeParam(r)
 	if !ok || n == nil {
-		s.renderPartial(w, r, "containers-table", tablePartialView{})
+		// The node in the query string no longer resolves (deleted, or the
+		// store was reset). Render an explicit unreachable state rather than
+		// a zero-value view: the partial reads fields the zero value does not
+		// provide, which previously escaped as a 500 from template execution.
+		s.renderPartial(w, r, "containers-table", tablePartialView{
+			NodeOnline: false,
+			NodeError:  "The selected node no longer exists.",
+			CSRF:       s.auth.EnsureCSRF(w, r),
+			User:       userOf(r),
+			NodeUser:   userOf(r),
+		})
 		return
 	}
 	// Probe a stale node once so a page opened against a sleeping host
@@ -477,6 +493,9 @@ func (s *Server) containersTablePartial(w http.ResponseWriter, r *http.Request) 
 			NodeID:     n.Record.ID,
 			NodeOnline: n.Status.Online,
 			NodeError:  firstNonEmpty(err.Error(), n.Status.Error),
+			CSRF:       s.auth.EnsureCSRF(w, r),
+			User:       userOf(r),
+			NodeUser:   userOf(r),
 		})
 		return
 	}
@@ -518,6 +537,9 @@ type imagesView struct {
 // imagesPage lists the images available on the selected node.
 func (s *Server) imagesPage(w http.ResponseWriter, r *http.Request) {
 	vd, n, ok := s.page(w, r, "images", "Images")
+	if vd.Redirected {
+		return
+	}
 	if !ok || n == nil || n.Client == nil {
 		s.renderPage(w, r, http.StatusOK, "images", "layout", imagesView{viewData: vd})
 		return

@@ -35,6 +35,12 @@ func staticHandler() http.Handler {
 // securityHeaders applies conservative defaults suitable for a self-hosted
 // admin UI. The CSP allows the inline styles produced by Alpine's :style
 // bindings and the inline SVG icons rendered by the templates.
+//
+// 'unsafe-eval' is required by Alpine 3: it compiles every x-* / @event
+// expression with `new AsyncFunction`. All expressions are authored in our own
+// templates (never built from user input), so the added risk is bounded; a
+// strict-CSP deployment would need Alpine's CSP build plus a full template
+// rewrite to component methods.
 func (s *Server) securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
@@ -45,7 +51,7 @@ func (s *Server) securityHeaders(next http.Handler) http.Handler {
 		if !strings.HasPrefix(r.URL.Path, "/static/") {
 			h.Set("Content-Security-Policy",
 				"default-src 'self'; "+
-					"script-src 'self'; "+
+					"script-src 'self' 'unsafe-eval'; "+
 					"style-src 'self' 'unsafe-inline'; "+
 					"img-src 'self' data:; "+
 					"font-src 'self'; "+

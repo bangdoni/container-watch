@@ -115,6 +115,11 @@ func run() error {
 			"version", n.Status.Version,
 		)
 	}
+	// Nodes that were unreachable at startup (or added while their engine was
+	// down) become reachable later. The health loop re-probes them but cannot
+	// start their streams itself, so hook it up here. StartNodeStreams is
+	// idempotent — a node already streaming is left alone.
+	nodes.SetOnlineHook(func(n *engine.Node) { srv.StartNodeStreams(ctx, n) })
 
 	go purgeSessionsLoop(ctx, db, log)
 

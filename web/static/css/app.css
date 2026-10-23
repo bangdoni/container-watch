@@ -1180,6 +1180,9 @@ tr:hover .id-tag svg {
   margin-bottom: 5px;
 }
 .chart-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 11px;
   font-weight: 500;
   color: var(--text-secondary);
@@ -1197,8 +1200,10 @@ tr:hover .id-tag svg {
   font-variant-numeric: tabular-nums;
   margin-top: 2px;
 }
-.chart svg,
-.chart .chart-svg {
+/* Only the plot itself is stretched. A bare `.chart svg` selector also matched
+   the 16px icons inside .chart-title/.chart-value and blew them up to fill the
+   card, collapsing the plot to a sliver. */
+.chart > .chart-svg {
   display: block;
   width: 100%;
   height: 74px;

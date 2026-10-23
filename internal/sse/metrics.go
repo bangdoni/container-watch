@@ -10,13 +10,26 @@ import (
 )
 
 // Sample is one point in a container's resource time series.
+//
+// NetRx/NetTx are monotonic engine counters, so a chart drawn from them only
+// ever climbs; RxRate/TxRate (bytes/second since the previous sample) are what
+// the network chart actually plots. BlkRead/BlkWrite carry the same story for
+// the disk chart.
 type Sample struct {
 	CPU   float64 `json:"cpu"`
 	Mem   int64   `json:"mem"`
 	Limit int64   `json:"limit"`
 	NetRx uint64  `json:"net_rx"`
 	NetTx uint64  `json:"net_tx"`
-	Ts    int64   `json:"ts"`
+	// Block I/O totals, kept so the disk chart can be seeded from history.
+	BlkRead  uint64 `json:"blk_read"`
+	BlkWrite uint64 `json:"blk_write"`
+	// Rates are the per-second deltas between this sample and the previous one.
+	RxRate    float64 `json:"rx_rate"`
+	TxRate    float64 `json:"tx_rate"`
+	ReadRate  float64 `json:"read_rate"`
+	WriteRate float64 `json:"write_rate"`
+	Ts        int64   `json:"ts"`
 }
 
 // ContainerMetrics is the live resource state of one container.
@@ -282,7 +295,20 @@ func (b *MetricsBroker) record(nodeID int64, cm ContainerMetrics) {
 	if len(s) >= b.window {
 		s = append(s[:0], s[len(s)-b.window+1:]...)
 	}
-	s = append(s, Sample{CPU: cm.CPU, Mem: cm.Mem, Limit: cm.MemLimit, NetRx: cm.NetRx, NetTx: cm.NetTx, Ts: cm.Ts})
+	s = append(s, Sample{
+		CPU:       cm.CPU,
+		Mem:       cm.Mem,
+		Limit:     cm.MemLimit,
+		NetRx:     cm.NetRx,
+		NetTx:     cm.NetTx,
+		BlkRead:   cm.BlkRead,
+		BlkWrite:  cm.BlkWrite,
+		RxRate:    cm.RxRate,
+		TxRate:    cm.TxRate,
+		ReadRate:  cm.ReadRate,
+		WriteRate: cm.WriteRate,
+		Ts:        cm.Ts,
+	})
 	b.series[key] = s
 	b.latest[key] = cm
 }

@@ -51,6 +51,10 @@ type Manager struct {
 	localSockets []string
 	disableLocal bool
 
+	// onOnline is an optional callback invoked after a health-loop probe for
+	// nodes that are online. See SetOnlineHook.
+	onOnline func(n *Node)
+
 	// refreshMu serialises Refresh calls.
 	refreshMu sync.Mutex
 }
@@ -136,9 +140,12 @@ func (m *Manager) applyRecords(records []*database.Node) []*Node {
 		}
 		m.nodes[rec.ID] = node
 	}
-	for id, node := range m.nodes {
+	for id := range m.nodes {
 		if _, ok := seen[id]; !ok {
-			delete(m.localSocketPaths, node.Record.Endpoint)
+			// A node the store no longer returns is gone. Do NOT touch
+			// localSocketPaths here: that map records which *endpoints* are
+			// local, and wiping the entry left the node permanently marked
+			// non-local (no host CPU/memory stats) if it reappeared.
 			delete(m.nodes, id)
 		}
 	}
@@ -283,6 +290,20 @@ func (m *Manager) ProbeByID(ctx context.Context, id int64) error {
 	return nil
 }
 
+// SetOnlineHook registers a callback invoked for every node that is online
+// after a health-loop probe. The handler layer uses it to start the node's
+// metrics and event streams, so a node that only becomes reachable after
+// startup (or that was added while its engine was down) still gets live data
+// without a process restart.
+//
+// The hook must be idempotent: it is called on every probe cycle for every
+// online node.
+func (m *Manager) SetOnlineHook(fn func(n *Node)) {
+	m.mu.Lock()
+	m.onOnline = fn
+	m.mu.Unlock()
+}
+
 // StartHealthLoop re-probes every node periodically so the node switcher stays
 // accurate. It returns when ctx is done.
 func (m *Manager) StartHealthLoop(ctx context.Context, every time.Duration) {
@@ -300,6 +321,13 @@ func (m *Manager) StartHealthLoop(ctx context.Context, every time.Duration) {
 				pctx, cancel := context.WithTimeout(ctx, 6*time.Second)
 				m.probe(pctx, n)
 				cancel()
+
+				m.mu.RLock()
+				hook := m.onOnline
+				m.mu.RUnlock()
+				if hook != nil && n.Status.Online {
+					hook(n)
+				}
 			}
 		}
 	}

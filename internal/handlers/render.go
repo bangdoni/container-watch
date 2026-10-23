@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -113,6 +115,11 @@ var funcMap = template.FuncMap{
 		return v
 	},
 	"icon": func(name string) template.HTML { return template.HTML(iconSvg(name)) },
+	// asset renders a cache-busted URL for an embedded static file, e.g.
+	// {{ asset "js/app.js" }} -> /static/js/app.js?v=1a2b3c4d. Without this a
+	// browser keeps a stale bundle for the whole max-age window after an
+	// upgrade.
+	"asset": assetURL,
 	"isAdmin": func(v any) bool {
 		switch u := v.(type) {
 		case *database.User:
@@ -122,6 +129,39 @@ var funcMap = template.FuncMap{
 		}
 		return false
 	},
+}
+
+// assetVersions maps a static path ("js/app.js") to a short content hash. It is
+// computed once from the embedded filesystem at startup.
+var assetVersions = buildAssetVersions()
+
+func buildAssetVersions() map[string]string {
+	out := make(map[string]string)
+	err := fs.WalkDir(web.Static, "static", func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		data, err := web.Static.ReadFile(p)
+		if err != nil {
+			return nil
+		}
+		sum := sha256.Sum256(data)
+		out[strings.TrimPrefix(p, "static/")] = hex.EncodeToString(sum[:4])
+		return nil
+	})
+	if err != nil {
+		return map[string]string{}
+	}
+	return out
+}
+
+// assetURL returns "/static/<path>?v=<hash>" for an embedded asset.
+func assetURL(p string) string {
+	p = strings.TrimPrefix(strings.TrimPrefix(p, "/"), "static/")
+	if v, ok := assetVersions[p]; ok {
+		return "/static/" + p + "?v=" + v
+	}
+	return "/static/" + p
 }
 
 // NewRenderer parses all templates.

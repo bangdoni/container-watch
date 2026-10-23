@@ -102,6 +102,11 @@ type viewData struct {
 	FlashKind string
 	// Data holds arbitrary page-specific values.
 	Data map[string]any
+	// Redirected is set by page() when it already sent a 3xx for a stale
+	// ?node= parameter. Handlers must return without writing a body — a
+	// second WriteHeader is ignored by net/http and logged as "superfluous
+	// response.WriteHeader call", which then litters the operator's log.
+	Redirected bool
 }
 
 // flashKind maps a kind to the CSS class suffix used by the alert component.
@@ -167,10 +172,30 @@ func (s *Server) base(w http.ResponseWriter, r *http.Request, active, title stri
 
 // page builds the full view data for a rendered page: chrome, selected node
 // and — when the node is reachable — its container list plus live metrics.
+//
+// When the URL names a node that no longer exists the caller is redirected to
+// the same page without the stale parameter, so it lands on the default node
+// instead of rendering empty and streaming from node 0. In that case the
+// returned viewData has Redirected set and callers must return immediately:
+// writing a body after http.Redirect logs "superfluous response.WriteHeader".
 func (s *Server) page(w http.ResponseWriter, r *http.Request, active, title string) (viewData, *engine.Node, bool) {
 	vd := s.base(w, r, active, title)
 	n, ok := s.nodeParam(r)
 	if !ok {
+		// Redirect only for a URL that named a *real* node id which no longer
+		// exists (deleted in another tab, or a stale bookmark).
+		if id, err := strconv.ParseInt(r.URL.Query().Get("node"), 10, 64); err == nil && id > 0 {
+			u := *r.URL
+			q := u.Query()
+			q.Del("node")
+			u.RawQuery = q.Encode()
+			vd.Redirected = true
+			http.Redirect(w, r, u.String(), http.StatusSeeOther)
+			return vd, nil, false
+		}
+		return vd, nil, false
+	}
+	if n == nil {
 		return vd, nil, false
 	}
 	vd.NodeID = n.Record.ID
@@ -210,9 +235,17 @@ func (s *Server) withNode(r *http.Request, vd viewData) (viewData, *engine.Node,
 func (s *Server) nodeParam(r *http.Request) (*engine.Node, bool) {
 	if v := r.URL.Query().Get("node"); v != "" {
 		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
+			if id <= 0 {
+				// 0 means "unspecified" — templates emit it when no node has
+				// been selected yet. Real node ids start at 1.
+				return s.nodes.Default()
+			}
 			if n, ok := s.nodes.Get(id); ok {
 				return n, true
 			}
+			// An explicit but unknown node must not silently fall back to
+			// another node: the caller asked for a specific engine.
+			return nil, false
 		}
 	}
 	return s.nodes.Default()

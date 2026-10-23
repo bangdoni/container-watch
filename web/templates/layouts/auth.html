@@ -7,11 +7,13 @@
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#111217">
   <title>{{ .Title }} · ContainerWatch</title>
-  <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/static/css/app.css">
-  <script src="/static/js/htmx.min.js" defer></script>
-  <script src="/static/js/alpine.min.js" defer></script>
-  <script src="/static/js/app.js" defer></script>
+  <link rel="icon" href="{{ asset "img/favicon.svg" }}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ asset "css/app.css" }}">
+  <script src="{{ asset "js/htmx.min.js" }}" defer></script>
+  <!-- Alpine must be loaded last: it self-starts from a microtask and needs
+       every `alpine:init` listener already registered. -->
+  <script src="{{ asset "js/app.js" }}" defer></script>
+  <script src="{{ asset "js/alpine.min.js" }}" defer></script>
 </head>
 <body>
   <div class="auth-shell">

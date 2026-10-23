@@ -84,9 +84,7 @@
   </div>
 </div>
 
-<div hx-ext="sse" sse-connect="/events/metrics?node={{ .NodeID }}">
-  <div sse-swap="metrics" hx-swap="none" x-init="$store.metrics.snap($event)"></div>
-</div>
+{{/* Live metrics are streamed by the layout (see layouts/layout.html). */}}
 
 {{/* --------------------------------------------------------- inspect grid */}}
 <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:10px">

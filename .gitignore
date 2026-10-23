@@ -21,3 +21,6 @@ coverage.txt
 .DS_Store
 .idea/
 .vscode/
+
+# Local browser-session artefacts
+/.playwright-mcp/

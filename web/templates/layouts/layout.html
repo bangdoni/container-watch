@@ -8,14 +8,17 @@
   <meta name="theme-color" content="#111217">
   <meta name="htmx-config" content='{"historyCacheSize":0,"defaultSwapStyle":"innerHTML","includeIndicatorStyles":false}'>
   <title>{{ .Title }} · ContainerWatch</title>
-  <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/static/css/app.css">
-  <script src="/static/js/htmx.min.js" defer></script>
-  <script src="/static/js/htmx-sse.js" defer></script>
-  <script src="/static/js/alpine.min.js" defer></script>
-  <script src="/static/js/containers.js" defer></script>
-  <script src="/static/js/logs.js" defer></script>
-  <script src="/static/js/app.js" defer></script>
+  <link rel="icon" href="{{ asset "img/favicon.svg" }}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ asset "css/app.css" }}">
+  <script src="{{ asset "js/htmx.min.js" }}" defer></script>
+  <script src="{{ asset "js/htmx-sse.js" }}" defer></script>
+  <!-- NOTE: Alpine starts itself from a queued microtask the moment its own
+       script finishes, so every component and every `alpine:init` listener
+       must be registered *before* alpine.min.js is loaded. Keep it last. -->
+  <script src="{{ asset "js/containers.js" }}" defer></script>
+  <script src="{{ asset "js/logs.js" }}" defer></script>
+  <script src="{{ asset "js/app.js" }}" defer></script>
+  <script src="{{ asset "js/alpine.min.js" }}" defer></script>
 </head>
 <body x-data x-cloak>
   <div class="shell">
@@ -34,6 +37,15 @@
         {{ template "content" . }}
       </main>
     </div>
+  </div>
+  {{/* Page-wide live streams: mounted once in the layout so the modal and any
+       page widget can read live values, for every page (not just the
+       dashboard). The lifecycle stream lives on the container table wrapper. */}}
+  <div hx-ext="sse" sse-connect="/events/metrics?node={{ .NodeID }}" aria-hidden="true">
+    <div sse-swap="metrics" hx-swap="none"></div>
+  </div>
+  <div hx-ext="sse" sse-connect="/events/host?node={{ .NodeID }}" aria-hidden="true">
+    <div sse-swap="host" hx-swap="none"></div>
   </div>
   {{ template "modal-root" . }}
   {{ template "toast-root" . }}

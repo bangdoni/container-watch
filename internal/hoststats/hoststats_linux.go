@@ -100,3 +100,7 @@ func readLoad() float64 {
 	v, _ := strconv.ParseFloat(fields[0], 64)
 	return v
 }
+
+// readCPUPercent is unused on Linux: /proc/stat provides cumulative counters,
+// so Sample derives the percentage from deltas.
+func readCPUPercent() (float64, bool) { return 0, false }

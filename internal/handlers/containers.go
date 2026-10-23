@@ -144,6 +144,9 @@ func minInt(a, b int) int {
 // containerDetailPage renders the standalone container page.
 func (s *Server) containerDetailPage(w http.ResponseWriter, r *http.Request) {
 	vd, _, ok := s.page(w, r, "containers", "Container")
+	if vd.Redirected {
+		return
+	}
 	if !ok {
 		http.Redirect(w, r, "/containers", http.StatusSeeOther)
 		return

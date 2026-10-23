@@ -49,24 +49,30 @@ type cpuTimes struct {
 func (c *Collector) Sample() Sample {
 	s := Sample{At: time.Now()}
 
+	// A CPU read failure must not discard the memory reading: on some hosts
+	// (notably newer macOS) the kernel counters are unavailable while memory
+	// stats still work.
 	ct, err := readCPUTimes()
-	if err != nil {
-		return s
-	}
-	total, available, merr := readMem()
-
-	c.mu.Lock()
-	if c.hasPrev && ct.total > c.prev.total {
-		dTot := float64(ct.total - c.prev.total)
-		dBusy := float64(ct.busy - c.prev.busy)
-		if dBusy < 0 {
-			dBusy = 0
+	if err == nil {
+		c.mu.Lock()
+		if c.hasPrev && ct.total > c.prev.total {
+			dTot := float64(ct.total - c.prev.total)
+			dBusy := float64(ct.busy - c.prev.busy)
+			if dBusy < 0 {
+				dBusy = 0
+			}
+			s.CPUPercent = dBusy / dTot * 100
 		}
-		s.CPUPercent = dBusy / dTot * 100
+		c.prev = ct
+		c.hasPrev = true
+		c.mu.Unlock()
+	} else if pct, ok := readCPUPercent(); ok {
+		// Platforms without cumulative counters can supply an instantaneous
+		// reading instead.
+		s.CPUPercent = pct
 	}
-	c.prev = ct
-	c.hasPrev = true
-	c.mu.Unlock()
+
+	total, available, merr := readMem()
 
 	if merr == nil && total > 0 {
 		s.MemTotal = total

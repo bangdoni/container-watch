@@ -35,6 +35,17 @@
   const esc = (s) =>
     String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+  // Placeholder shown inside #modal-body while a fragment is in flight.
+  const MODAL_PLACEHOLDER =
+    '<div class="modal-header"><div class="modal-title">Loading…</div>' +
+    '<button class="modal-close" type="button" aria-label="Close" onclick="CW.closeModal()">' +
+    '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" ' +
+    'stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ' +
+    'class="inline-block shrink-0"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+    "</button></div>" +
+    '<div class="modal-body"><div class="flex items-center gap-2 text-secondary">' +
+    '<span class="spinner"></span> Fetching from engine…</div></div>';
+
   const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
   window.CW = window.CW || {};
@@ -85,9 +96,23 @@
     e.detail.headers["X-CSRF-Token"] = csrfToken();
   });
 
-  // Allow SSE payloads to update Alpine stores / trigger refreshes.
+  // Route SSE payloads into the Alpine stores. htmx-sse fires
+  // `htmx:sseMessage` on the [sse-swap] element with the MessageEvent as the
+  // detail, so this has to be a listener — an x-init handler runs only once,
+  // at tree init, and would never see a single frame.
   document.addEventListener("htmx:sseMessage", (e) => {
-    // Handled per-element via hx-ext="sse" swap semantics; nothing global here.
+    const evt = e.detail || {};
+    const kind = evt.type || "";
+    if (!kind || !window.Alpine) return;
+    try {
+      if (kind === "metrics" && Alpine.store("metrics")) {
+        Alpine.store("metrics").apply(evt.data);
+      } else if (kind === "host" && Alpine.store("host")) {
+        Alpine.store("host").apply(evt.data);
+      }
+    } catch (err) {
+      /* ignore malformed frame */
+    }
   });
 
   document.addEventListener("htmx:responseError", (e) => {
@@ -115,9 +140,10 @@
     Alpine.store("metrics", {
       data: {},
       nodeId: null,
-      snap(evt) {
+      // apply ingests a raw SSE frame (JSON string).
+      apply(raw) {
         try {
-          const payload = JSON.parse(evt.detail.data || "{}");
+          const payload = JSON.parse(raw || "{}");
           const map = {};
           (payload.containers || []).forEach((c) => (map[c.id] = c));
           this.data = map;
@@ -127,12 +153,16 @@
           /* ignore malformed frame */
         }
       },
+      // snap accepts an htmx SSE event (evt.detail.data).
+      snap(evt) {
+        this.apply(evt && evt.detail ? evt.detail.data : null);
+      },
       get(id) {
         return this.data[id] || null;
       },
     });
 
-    // Host summary state, updated by the dashboard SSE stream.
+    // Host summary state, updated by the layout's SSE stream.
     Alpine.store("host", {
       cpu: 0,
       memPct: 0,
@@ -140,9 +170,9 @@
       memTotal: 0,
       load: 0,
       series: [],
-      update(evt) {
+      apply(raw) {
         try {
-          const p = JSON.parse(evt.detail.data || "{}");
+          const p = JSON.parse(raw || "{}");
           this.cpu = p.cpu || 0;
           this.memPct = p.mem_pct || 0;
           this.memUsed = p.mem_used || 0;
@@ -154,18 +184,35 @@
           /* ignore */
         }
       },
+      update(evt) {
+        this.apply(evt && evt.detail ? evt.detail.data : null);
+      },
     });
 
     // Global UI store: modal stack, node selector, toasts.
     Alpine.store("ui", {
-      modal: null, // { name, title, ... }
+      modal: null, // { name, url, size, ... }
       sidebarOpen: false,
       nodeId: null,
       open(name, data) {
         this.modal = Object.assign({ name: name }, data || {});
+        this.loadBody();
+      },
+      // Load the modal body for the currently-open modal. Driven from open()
+      // rather than an htmx trigger: `hx-trigger="load"` only fires once, at
+      // page init, when no URL is set yet. (Named loadBody, not fetch: a store
+      // member called `fetch` is shadowed and never reaches the proxy.)
+      loadBody() {
+        const m = this.modal;
+        if (!m || !m.url || !window.htmx) return;
+        const body = document.getElementById("modal-body");
+        if (body) body.innerHTML = MODAL_PLACEHOLDER;
+        window.htmx.ajax("GET", m.url, { target: "#modal-body", swap: "innerHTML" });
       },
       close() {
         this.modal = null;
+        const body = document.getElementById("modal-body");
+        if (body) body.innerHTML = MODAL_PLACEHOLDER;
       },
       toast(msg, kind) {
         toasts.show(msg, kind);
@@ -357,27 +404,58 @@
     const kind = svg.getAttribute("data-chart");
     const key = svg.getAttribute("data-chart-key");
     const series = window.CW.chartData[key] || [];
-    const rect = svg.viewBox.baseVal;
-    const W = rect && rect.width ? rect.width : 320;
-    const H = rect && rect.height ? rect.height : 74;
+    // Match the viewBox to the rendered box. The element is stretched by CSS
+    // (width:100%; preserveAspectRatio="none"), so a fixed 320-wide viewBox
+    // would scale every glyph horizontally and make the axis label look
+    // distorted.
+    const box = svg.getBoundingClientRect();
+    const vb = svg.viewBox.baseVal;
+    const W = box.width > 0 ? box.width : vb && vb.width ? vb.width : 320;
+    const H = box.height > 0 ? box.height : vb && vb.height ? vb.height : 74;
+    if (box.width > 0 && box.height > 0) {
+      svg.setAttribute("viewBox", "0 0 " + W.toFixed(0) + " " + H.toFixed(0));
+    }
     let fmt = (v) => v;
     let max = 1;
     let values;
+    // Cumulative engine counters are converted to per-second rates: plotting
+    // them directly yields a line that only climbs and pins to the top of the
+    // box. Seeded history has no rate field, so the delta between consecutive
+    // samples is used instead.
+    const deltaRate = (get) => series.map((s, i) => {
+      if (i === 0) return 0;
+      const p = series[i - 1];
+      const dt = Math.max(0.001, ((s.ts || 0) - (p.ts || 0)) / 1000);
+      return Math.max(0, (get(s) || 0) - (get(p) || 0)) / dt;
+    });
     if (kind === "mem") {
       values = series.map((s) => s.mem);
-      max = Math.max.apply(null, series.map((s) => Math.max(s.limit || 0, s.mem || 0)).concat([1]));
+      // The limit is serialised as mem_limit (the Sample field's JSON tag);
+      // reading s.limit silently ignored it and the chart never scaled to the
+      // container's ceiling.
+      max = Math.max.apply(null, series.map((s) => Math.max(s.mem_limit || 0, s.mem || 0)).concat([1]));
       fmt = (v) => fmtBytes(v);
     } else if (kind === "io") {
-      values = series.map((s) => (s.net_rx || 0) + (s.net_tx || 0));
+      values = series.map((s, i) => (typeof s.rx_rate === "number" ? s.rx_rate + (s.tx_rate || 0) : null));
+      if (values.some((v) => v === null)) {
+        values = deltaRate((s) => (s.net_rx || 0) + (s.net_tx || 0));
+      }
       max = Math.max.apply(null, values.concat([1]));
-      fmt = (v) => fmtBytes(v);
+      fmt = (v) => fmtBytes(v) + "/s";
     } else if (kind === "blk") {
-      values = series.map((s) => (s.blk_read || 0) + (s.blk_write || 0));
+      values = series.map((s, i) => (typeof s.read_rate === "number" ? s.read_rate + (s.write_rate || 0) : null));
+      if (values.some((v) => v === null)) {
+        values = deltaRate((s) => (s.blk_read || 0) + (s.blk_write || 0));
+      }
       max = Math.max.apply(null, values.concat([1]));
-      fmt = (v) => fmtBytes(v);
+      fmt = (v) => fmtBytes(v) + "/s";
     } else {
       values = series.map((s) => s.cpu);
-      max = Math.max(100, Math.max.apply(null, values.concat([0])) * 1.15);
+      // Scale to the data (with headroom) instead of a fixed 0-100 ceiling:
+      // a container idling at 0.6% otherwise renders as a flat line on the
+      // floor with no visible shape.
+      const peak = Math.max.apply(null, values.concat([0]));
+      max = Math.min(100, Math.max(1, peak * 1.3));
       fmt = (v) => fmtPct(v);
     }
     const color =
@@ -404,7 +482,10 @@
       n
         ? '<circle cx="' + px(n - 1).toFixed(1) + '" cy="' + py(last).toFixed(1) + '" r="2.4" fill="' + color + '"/>'
         : "",
-      '<text class="axis" x="2" y="' + (H - 0.5) + '">' + esc(fmt(max)) + "</text>",
+      // The scale label sits at the top-left, just under the first grid line.
+      // Drawing it at the bottom edge pushed the baseline outside the viewBox,
+      // so the glyphs were clipped by the card.
+      '<text class="axis" x="3" y="' + (padTop + 9) + '">' + esc(fmt(max)) + "</text>",
     ].join("");
   }
 

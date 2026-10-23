@@ -3,18 +3,8 @@
 <div class="alert alert-{{ .AlertClass }} mb-3">{{ icon "alert" }}<span>{{ .Flash }}</span></div>
 {{ end }}
 
-{{/* Live streams: host resources, container metrics and lifecycle events. */}}
-<div class="hide-sm"
-     hx-ext="sse"
-     sse-connect="/events/host?node={{ .NodeID }}">
-  <div sse-swap="host" hx-swap="none" x-init="$store.host.update($event)"></div>
-</div>
-<div hx-ext="sse" sse-connect="/events/metrics?node={{ .NodeID }}">
-  <div sse-swap="metrics" hx-swap="none" x-init="$store.metrics.snap($event)"></div>
-</div>
-<div hx-ext="sse" sse-connect="/events/containers?node={{ .NodeID }}"
-     hx-trigger="sse:containers" hx-get="/containers/table?node={{ .NodeID }}" hx-target="#cw-containers-table"
-     hx-swap="outerHTML"></div>
+{{/* Live host + metrics streams are mounted once in the layout; the container
+   lifecycle stream lives on the table wrapper itself (see containers-table). */}}
 
 {{/* ---------------------------------------------------------- summary bar */}}
 <div class="stat-grid mb-3">
