@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerwatch/containerwatch/internal/engine"
+	"github.com/bangdoni/container-watch/internal/engine"
 )
 
 // row is the view model for one line of the container table. It precomputes the

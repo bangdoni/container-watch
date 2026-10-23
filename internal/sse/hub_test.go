@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/containerwatch/containerwatch/internal/sse"
+	"github.com/bangdoni/container-watch/internal/sse"
 )
 
 // TestHubPublishReachesSubscriber checks the basic fan-out.

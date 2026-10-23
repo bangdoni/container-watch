@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerwatch/containerwatch/internal/version"
+	"github.com/bangdoni/container-watch/internal/version"
 )
 
 // writeJSON encodes v as the response body.

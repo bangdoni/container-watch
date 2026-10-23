@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerwatch/containerwatch/internal/auth"
-	"github.com/containerwatch/containerwatch/internal/database"
-	"github.com/containerwatch/containerwatch/internal/engine"
-	"github.com/containerwatch/containerwatch/internal/version"
+	"github.com/bangdoni/container-watch/internal/auth"
+	"github.com/bangdoni/container-watch/internal/database"
+	"github.com/bangdoni/container-watch/internal/engine"
+	"github.com/bangdoni/container-watch/internal/version"
 )
 
 // Settings keys persisted in the settings table.

@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/containerwatch/containerwatch/internal/auth"
-	"github.com/containerwatch/containerwatch/internal/database"
+	"github.com/bangdoni/container-watch/internal/auth"
+	"github.com/bangdoni/container-watch/internal/database"
 )
 
 // newStore opens a throwaway SQLite store in a temp dir.

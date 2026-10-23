@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerwatch/containerwatch/internal/auth"
-	"github.com/containerwatch/containerwatch/internal/database"
+	"github.com/bangdoni/container-watch/internal/auth"
+	"github.com/bangdoni/container-watch/internal/database"
 )
 
 // usernameRe constrains account names to a safe, portable character set.

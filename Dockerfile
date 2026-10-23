@@ -27,9 +27,9 @@ ENV CGO_ENABLED=0
 RUN GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} \
     go build -trimpath \
       -ldflags "-s -w \
-        -X github.com/containerwatch/containerwatch/internal/version.Version=${VERSION} \
-        -X github.com/containerwatch/containerwatch/internal/version.Commit=${COMMIT} \
-        -X github.com/containerwatch/containerwatch/internal/version.BuildDate=${BUILD_DATE}" \
+        -X github.com/bangdoni/container-watch/internal/version.Version=${VERSION} \
+        -X github.com/bangdoni/container-watch/internal/version.Commit=${COMMIT} \
+        -X github.com/bangdoni/container-watch/internal/version.BuildDate=${BUILD_DATE}" \
       -o /out/containerwatch ./cmd/containerwatch
 
 # ---------------------------------------------------------------------------

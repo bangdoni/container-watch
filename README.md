@@ -51,19 +51,69 @@ shipped as a single static binary.
 | `/admin/users` | Role management, account deletion |
 | `/admin/settings` | Registration toggle, instance info |
 
-## Quick start
+## Install
 
-### Binary
+ContainerWatch ships as a single static binary with no runtime dependencies.
+Pick whichever method fits how you run containers.
+
+### From source
+
+Requires Go 1.26 or newer.
 
 ```sh
+git clone https://github.com/bangdoni/container-watch.git
+cd container-watch
 go build -o containerwatch ./cmd/containerwatch
 ./containerwatch
 # → http://localhost:8080  (setup wizard on first visit)
 ```
 
-Requires Go 1.26 or newer. The binary is fully static (`CGO_ENABLED=0`); the
-SQLite driver is pure Go (`modernc.org/sqlite`), so no libc or build tools are
-needed at runtime.
+### With `go install`
+
+Installs to `$GOBIN` (default `~/go/bin`):
+
+```sh
+go install github.com/bangdoni/container-watch/cmd/containerwatch@latest
+containerwatch
+```
+
+Add `$GOBIN` to your `PATH` if it is not already there.
+
+### Prebuilt binary
+
+> **Not yet published.** Release archives are not cut yet, so the
+> [Releases](https://github.com/bangdoni/container-watch/releases) page is
+> empty. Until it is, use `go install`, build from source, or Docker.
+>
+> When releases land they will be named
+> `containerwatch_<version>_<goos>_<goarch>.tar.gz` for these targets:
+>
+> | Platform | Target |
+> |---|---|
+> | Linux x86-64 | `linux/amd64` |
+> | Linux ARM64 | `linux/arm64` |
+> | macOS (Apple silicon) | `darwin/arm64` |
+> | macOS (Intel) | `darwin/amd64` |
+
+### Cross-compiling
+
+The binary is fully static (`CGO_ENABLED=0`); the SQLite driver is pure Go
+(`modernc.org/sqlite`), so no libc or cross-toolchain is needed. To build for
+another platform yourself:
+
+```sh
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
+  go build -trimpath -ldflags "-s -w" -o containerwatch ./cmd/containerwatch
+```
+
+Verified sizes for the four supported targets:
+
+| Target | Binary |
+|---|---|
+| `linux/amd64` | ~14 MB |
+| `linux/arm64` | ~13 MB |
+| `darwin/arm64` | ~13 MB |
+| `darwin/amd64` | ~14 MB |
 
 ### Docker
 

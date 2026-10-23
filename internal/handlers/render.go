@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerwatch/containerwatch/internal/database"
-	"github.com/containerwatch/containerwatch/internal/version"
-	"github.com/containerwatch/containerwatch/web"
+	"github.com/bangdoni/container-watch/internal/database"
+	"github.com/bangdoni/container-watch/internal/version"
+	"github.com/bangdoni/container-watch/web"
 )
 
 // Renderer loads and executes the embedded templates.

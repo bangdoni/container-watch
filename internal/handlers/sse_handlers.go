@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/containerwatch/containerwatch/internal/engine"
-	"github.com/containerwatch/containerwatch/internal/hoststats"
-	"github.com/containerwatch/containerwatch/internal/sse"
+	"github.com/bangdoni/container-watch/internal/engine"
+	"github.com/bangdoni/container-watch/internal/hoststats"
+	"github.com/bangdoni/container-watch/internal/sse"
 )
 
 // sseKeepAlive is the heartbeat interval for all streams. It sits below the

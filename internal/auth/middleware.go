@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/containerwatch/containerwatch/internal/database"
+	"github.com/bangdoni/container-watch/internal/database"
 )
 
 // RoleAdmin and RoleUser are the only RBAC roles.

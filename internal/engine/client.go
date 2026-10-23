@@ -20,8 +20,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerwatch/containerwatch/internal/database"
-	"github.com/containerwatch/containerwatch/internal/version"
+	"github.com/bangdoni/container-watch/internal/database"
+	"github.com/bangdoni/container-watch/internal/version"
 )
 
 // Kind identifies the container engine flavour.

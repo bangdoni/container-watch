@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/containerwatch/containerwatch/internal/engine"
+	"github.com/bangdoni/container-watch/internal/engine"
 )
 
 // EventBroker watches engine events (start/stop/health changes) and translates

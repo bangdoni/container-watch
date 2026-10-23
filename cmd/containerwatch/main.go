@@ -20,13 +20,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/containerwatch/containerwatch/internal/auth"
-	"github.com/containerwatch/containerwatch/internal/config"
-	"github.com/containerwatch/containerwatch/internal/database"
-	"github.com/containerwatch/containerwatch/internal/engine"
-	"github.com/containerwatch/containerwatch/internal/handlers"
-	"github.com/containerwatch/containerwatch/internal/sse"
-	"github.com/containerwatch/containerwatch/internal/version"
+	"github.com/bangdoni/container-watch/internal/auth"
+	"github.com/bangdoni/container-watch/internal/config"
+	"github.com/bangdoni/container-watch/internal/database"
+	"github.com/bangdoni/container-watch/internal/engine"
+	"github.com/bangdoni/container-watch/internal/handlers"
+	"github.com/bangdoni/container-watch/internal/sse"
+	"github.com/bangdoni/container-watch/internal/version"
 )
 
 const (

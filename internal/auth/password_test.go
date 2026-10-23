@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/containerwatch/containerwatch/internal/auth"
+	"github.com/bangdoni/container-watch/internal/auth"
 )
 
 // TestHashPasswordRoundTrip checks that a password hashes and verifies.

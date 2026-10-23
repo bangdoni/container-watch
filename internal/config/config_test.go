@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/containerwatch/containerwatch/internal/config"
+	"github.com/bangdoni/container-watch/internal/config"
 )
 
 // clearEnv removes every variable the loader reads so a test starts from a

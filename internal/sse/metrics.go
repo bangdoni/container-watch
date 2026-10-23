@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerwatch/containerwatch/internal/engine"
+	"github.com/bangdoni/container-watch/internal/engine"
 )
 
 // Sample is one point in a container's resource time series.

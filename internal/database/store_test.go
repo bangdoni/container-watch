@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/containerwatch/containerwatch/internal/database"
+	"github.com/bangdoni/container-watch/internal/database"
 )
 
 // newStore opens a throwaway SQLite store.

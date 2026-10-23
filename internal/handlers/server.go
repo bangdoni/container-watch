@@ -12,12 +12,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerwatch/containerwatch/internal/auth"
-	"github.com/containerwatch/containerwatch/internal/config"
-	"github.com/containerwatch/containerwatch/internal/database"
-	"github.com/containerwatch/containerwatch/internal/engine"
-	"github.com/containerwatch/containerwatch/internal/hoststats"
-	"github.com/containerwatch/containerwatch/internal/sse"
+	"github.com/bangdoni/container-watch/internal/auth"
+	"github.com/bangdoni/container-watch/internal/config"
+	"github.com/bangdoni/container-watch/internal/database"
+	"github.com/bangdoni/container-watch/internal/engine"
+	"github.com/bangdoni/container-watch/internal/hoststats"
+	"github.com/bangdoni/container-watch/internal/sse"
 )
 
 // Server holds every dependency the handlers need.

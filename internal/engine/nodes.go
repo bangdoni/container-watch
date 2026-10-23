@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerwatch/containerwatch/internal/database"
+	"github.com/bangdoni/container-watch/internal/database"
 )
 
 // NodeStatus is the live state of a configured endpoint.

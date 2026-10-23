@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerwatch/containerwatch/web"
+	"github.com/bangdoni/container-watch/web"
 )
 
 // staticHandler serves the embedded asset tree with long-lived immutable

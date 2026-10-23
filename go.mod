@@ -1,4 +1,4 @@
-module github.com/containerwatch/containerwatch
+module github.com/bangdoni/container-watch
 
 go 1.26.0
 

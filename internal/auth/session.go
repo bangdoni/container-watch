@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerwatch/containerwatch/internal/database"
+	"github.com/bangdoni/container-watch/internal/database"
 )
 
 // SessionCookieName is the cookie that carries the opaque session token.
