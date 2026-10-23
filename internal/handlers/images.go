@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerwatch/containerwatch/internal/engine"
+	"github.com/bangdoni/container-watch/internal/engine"
 )
 
 // The engine's GET /images/json is expensive: it walks the local image store

@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/containerwatch/containerwatch/internal/engine"
-	"github.com/containerwatch/containerwatch/internal/enginetest"
+	"github.com/bangdoni/container-watch/internal/engine"
+	"github.com/bangdoni/container-watch/internal/enginetest"
 )
 
 // newTestClient builds an engine client pointed at a fake engine.
