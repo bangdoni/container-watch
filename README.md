@@ -77,16 +77,19 @@ go install github.com/bangdoni/container-watch/cmd/containerwatch@latest
 containerwatch
 ```
 
-Add `$GOBIN` to your `PATH` if it is not already there.
+Add `$GOBIN` to your `PATH` if it is not already there. To pin a version, use
+`@v0.1.0` in place of `@latest`.
 
 ### Prebuilt binary
 
-> **Not yet published.** Release archives are not cut yet, so the
-> [Releases](https://github.com/bangdoni/container-watch/releases) page is
-> empty. Until it is, use `go install`, build from source, or Docker.
+> **Not yet published.** `go install` works today (the module is tagged and
+> installable), but prebuilt tarballs are not cut, so the
+> [Releases](https://github.com/bangdoni/container-watch/releases) page has no
+> archives yet. Until it does, use `go install`, build from source, or Docker.
 >
-> When releases land they will be named
-> `containerwatch_<version>_<goos>_<goarch>.tar.gz` for these targets:
+> Release archives will be named
+> `containerwatch_<version>_<goos>_<goarch>.tar.gz` for these targets, all of
+> which cross-compile cleanly today:
 >
 > | Platform | Target |
 > |---|---|
