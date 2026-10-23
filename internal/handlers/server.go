@@ -35,6 +35,10 @@ type Server struct {
 	log     *slog.Logger
 	started time.Time
 
+	// images caches each node's image list so /images does not block on the
+	// engine's slow /images/json endpoint.
+	images *imageCache
+
 	// limiter throttles authentication attempts per client IP.
 	limiter *rateLimiter
 	// setupMu serialises first-run admin creation.
@@ -76,6 +80,7 @@ func New(
 		host:    hoststats.New(),
 		log:     log,
 		started: time.Now(),
+		images:  newImageCache(),
 		limiter: newRateLimiter(6, 5*time.Minute),
 	}, nil
 }

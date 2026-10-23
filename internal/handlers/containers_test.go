@@ -433,6 +433,64 @@ func TestImagesPageListsImages(t *testing.T) {
 	}
 }
 
+// TestImagesPageCachesList proves /images does not block on the engine's slow
+// /images/json endpoint on every view.
+//
+// Measured against a real 57-image Podman store, the engine call took
+// 300-460ms while the template rendered in 2-5ms, so the page was almost
+// entirely engine wait. The handler now serves a cached list and revalidates
+// in the background, which makes a warm view a pure render.
+func TestImagesPageCachesList(t *testing.T) {
+	e := newEnv(t)
+	e.fake.SetImages(enginetest.Image{
+		ID:       "sha256:cafebabe",
+		RepoTags: []string{"redis:7"},
+		Size:     10 << 20,
+		Created:  time.Now().Add(-time.Hour).Unix(),
+	})
+	for _, n := range e.nodes.List() {
+		_ = e.nodes.ProbeByID(context.Background(), n.Record.ID)
+	}
+
+	// First view populates the cache (the probe above may already have).
+	if rec := e.get(t, "/images"); rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	calls := e.fake.ImageCalls()
+
+	// Two more views inside the TTL must be served from memory.
+	for i := 0; i < 2; i++ {
+		rec := e.get(t, "/images")
+		if rec.Code != http.StatusOK {
+			t.Fatalf("view %d status = %d, want 200", i, rec.Code)
+		}
+		if !strings.Contains(rec.Body.String(), "cafebabe") {
+			t.Fatalf("view %d is missing the cached image", i)
+		}
+	}
+	if got := e.fake.ImageCalls(); got != calls {
+		t.Errorf("cached views hit the engine: calls went %d -> %d", calls, got)
+	}
+
+	// Refresh forces a live read, so a newly pulled image appears.
+	e.fake.SetImages(enginetest.Image{
+		ID:       "sha256:feedface",
+		RepoTags: []string{"postgres:16"},
+		Size:     300 << 20,
+		Created:  time.Now().Unix(),
+	})
+	rec := e.get(t, "/images?refresh=1")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("refresh status = %d, want 200", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "feedface") {
+		t.Error("refresh did not pick up the new image")
+	}
+	if got := e.fake.ImageCalls(); got <= calls {
+		t.Errorf("refresh did not reach the engine: calls still %d", got)
+	}
+}
+
 // TestDashboardRenders checks the dashboard route.
 func TestDashboardRenders(t *testing.T) {
 	e := newEnv(t)

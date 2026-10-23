@@ -222,6 +222,9 @@ func (s *Server) afterNodeChange(r *http.Request, id int64, verb, name string) {
 		s.log.Error("refresh nodes", "error", err)
 	}
 	s.metrics.StopNode(id)
+	// The endpoint or credentials may have changed, so the cached image list
+	// belongs to the old engine.
+	s.images.Forget(id)
 	// Probe before deciding. A node that was just added has never been
 	// probed, so its status is still zeroed and Online false; testing
 	// Status.Online first would skip the streams entirely. The health loop
@@ -265,6 +268,7 @@ func (s *Server) nodeDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.metrics.StopNode(id)
+	s.images.Forget(id)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	_ = s.nodes.Refresh(ctx)

@@ -217,6 +217,9 @@ func (s *Server) StartNodeStreams(_ context.Context, n *engine.Node) {
 	ctx := s.lifetime()
 	s.metrics.StartNode(ctx, n.Record.ID, n.Client)
 	s.events.StartNode(ctx, n.Record.ID, n.Client)
+	// Prime the image list so the first /images visit after a node comes
+	// online is a cache hit instead of a 300ms+ engine round-trip.
+	s.images.Warm(ctx, n.Record.ID, n.Client)
 }
 
 // lifetime returns the server-wide context that background streams run under.

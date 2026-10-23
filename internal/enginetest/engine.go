@@ -85,6 +85,10 @@ type Server struct {
 	// failList makes only the container list fail.
 	failList bool
 
+	// imageCalls counts GET /images/json requests, so a test can prove a
+	// page is served from cache instead of blocking on the engine.
+	imageCalls int
+
 	http *httptest.Server
 }
 
@@ -181,6 +185,14 @@ func (s *Server) SetImages(i ...Image) {
 	s.images = i
 }
 
+// ImageCalls reports how many times GET /images/json was served, so a test
+// can assert that a page render was served from the handler cache.
+func (s *Server) ImageCalls() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.imageCalls
+}
+
 // SetLogs sets the log lines returned for a container.
 func (s *Server) SetLogs(id string, lines ...string) {
 	s.mu.Lock()
@@ -261,6 +273,9 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		}
 		s.writeJSON(w, list)
 	case p == "/images/json":
+		s.mu.Lock()
+		s.imageCalls++
+		s.mu.Unlock()
 		s.writeJSON(w, s.imagesLocked())
 	case strings.HasPrefix(p, "/containers/") && strings.HasSuffix(p, "/json"):
 		id := strings.TrimSuffix(strings.TrimPrefix(p, "/containers/"), "/json")

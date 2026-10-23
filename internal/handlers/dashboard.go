@@ -544,6 +544,8 @@ func (s *Server) imagesPage(w http.ResponseWriter, r *http.Request) {
 		s.renderPage(w, r, http.StatusOK, "images", "layout", imagesView{viewData: vd})
 		return
 	}
+	// The engine call is served from s.images' cache, so this context only
+	// bounds the offline probe and the occasional cold/forced fetch.
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 	if !n.Status.Online {
@@ -551,20 +553,14 @@ func (s *Server) imagesPage(w http.ResponseWriter, r *http.Request) {
 			n, _ = s.nodes.Get(n.Record.ID)
 		}
 	}
-	images, err := n.Client.ListImages(ctx)
+	images, total, err := s.images.Get(ctx, s.lifetime(), n.Record.ID, n.Client, r.URL.Query().Has("refresh"))
 	if err != nil {
 		vd.Flash = "Cannot list images: " + err.Error()
 		vd.FlashKind = "error"
 		s.renderPage(w, r, http.StatusOK, "images", "layout", imagesView{viewData: vd})
 		return
 	}
-	var total int64
-	out := make([]*engine.Image, 0, len(images))
-	for i := range images {
-		total += images[i].Size
-		out = append(out, &images[i])
-	}
 	s.renderPage(w, r, http.StatusOK, "images", "layout", imagesView{
-		viewData: vd, Images: out, Total: total,
+		viewData: vd, Images: images, Total: total,
 	})
 }
