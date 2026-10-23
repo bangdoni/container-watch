@@ -254,13 +254,11 @@ Deploy behind TLS (a reverse proxy is fine) and set `CW_TRUST_PROXY=true` so the
 
 MIT — see [LICENSE](LICENSE).
 
-ContainerWatch is original work; no source was copied from another project.
-It bundles third-party browser libraries and fonts under permissive licenses
-(MIT, 0BSD, and the SIL Open Font License 1.1), and depends on Go modules
-licensed BSD-3-Clause or MIT. There is no copyleft anywhere in the runtime
-dependency graph, so the MIT terms apply to the whole distribution.
-
-The required attributions for the bundled Alpine.js, htmx, htmx SSE extension
-and the Inter / JetBrains Mono fonts are collected in
-[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md), and the OFL text ships with
-the fonts at `web/static/fonts/OFL.txt`.
+ContainerWatch is original code, written from scratch. It stands on the
+shoulders of a few permissively-licensed third parties: Alpine.js and htmx
+(MIT), the htmx SSE extension (0BSD), the Inter and JetBrains Mono fonts
+(SIL OFL 1.1), and Go libraries that are MIT or BSD-3-Clause. Since there's
+no copyleft anywhere in the mix, the whole thing is covered by the MIT
+license. Full credits live in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md), and the font license ships
+with the fonts at `web/static/fonts/OFL.txt`.
